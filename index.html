@@ -508,7 +508,10 @@ function createCharts(results) {
             backgroundColor: r.model.colorGust,
             borderWidth: 3,
             tension: 0.3,
-            spanGaps: true
+            spanGaps: true,
+            // Chart.js: niedrigerer order-Wert wird SPÄTER gezeichnet (liegt oben).
+            // Prio 1 (Best Match) => order 1 => wird zuletzt gezeichnet => gewinnt bei Gleichstand.
+            order: WIND_DRAW_PRIORITY[r.model.name] ?? 99
         });
     });
     results.forEach(r => {
