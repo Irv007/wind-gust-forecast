@@ -254,6 +254,7 @@ let latitude = FALLBACK_LATITUDE;
 let longitude = FALLBACK_LONGITUDE;
 let locationLabel = FALLBACK_LABEL;
 let usedFallback = false;
+let customStartDateTime = null; // Date-Objekt oder null (dann: aktuelle Zeit / letzte 24h wie bisher)
 
 function getBrowserLocation() {
     return new Promise(resolve => {
@@ -567,15 +568,37 @@ function escapeHtml(value) {
         .replaceAll("'", "&#039;");
 }
 
+function toLocalDateOnlyString(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+}
 function buildApiUrl(modelId) {
+    const usingCustomStart = customStartDateTime instanceof Date && !Number.isNaN(customStartDateTime.getTime());
+    // Liegt der gewünschte Startzeitpunkt in der Vergangenheit, werden die Live-Vorhersagemodelle
+    // dort nicht mehr geführt - dafür gibt es die Historical Forecast API mit identischem Format,
+    // die archivierte Modellläufe (gleiche Modelle wie die Live-API) bereitstellt.
+    const isPast = usingCustomStart && customStartDateTime.getTime() < Date.now();
+    const host = isPast
+        ? "https://historical-forecast-api.open-meteo.com/v1/forecast"
+        : "https://api.open-meteo.com/v1/forecast";
+
     let url =
-        `https://api.open-meteo.com/v1/forecast` +
+        `${host}` +
         `?latitude=${latitude}` +
         `&longitude=${longitude}` +
         `&hourly=wind_gusts_10m,wind_direction_10m` +
         `&wind_speed_unit=kn` +
-        `&timezone=auto` +
-        `&forecast_hours=24`;
+        `&timezone=auto`;
+
+    if (usingCustomStart) {
+        const endDateTime = new Date(customStartDateTime.getTime() + 24 * 3600 * 1000);
+        url += `&start_date=${toLocalDateOnlyString(customStartDateTime)}`;
+        url += `&end_date=${toLocalDateOnlyString(endDateTime)}`;
+    } else {
+        url += `&forecast_hours=24`;
+    }
     // Best Match = kein models-Parameter.
     // Nur explizite Modelle wie ICON-EU und ICON-D2 bekommen &models=...
     if (modelId) {
@@ -648,20 +671,42 @@ async function fetchModel(model) {
     if (!hasGustData) {
         throw new Error(`Das Modell "${model.name}" liefert für diesen Standort nur leere/null-Werte bei den Böen - der Standort liegt vermutlich außerhalb des Abdeckungsbereichs dieses Modells.\nAPI-URL: ${url}`);
     }
+
+    // Bei explizitem Start-Zeitpunkt liefert start_date/end_date ganze Kalendertage zurück -
+    // hier auf das exakte 24h-Fenster ab dem gewünschten Zeitpunkt zuschneiden.
+    let times = data.hourly.time;
+    let gusts = data.hourly.wind_gusts_10m;
+    let directions = data.hourly.wind_direction_10m;
+    if (customStartDateTime instanceof Date && !Number.isNaN(customStartDateTime.getTime())) {
+        const windowStart = customStartDateTime.getTime();
+        const windowEnd = windowStart + 24 * 3600 * 1000;
+        const keepIndices = [];
+        times.forEach((t, i) => {
+            const ts = new Date(t).getTime();
+            if (ts >= windowStart && ts < windowEnd) keepIndices.push(i);
+        });
+        if (keepIndices.length === 0) {
+            throw new Error(`Für den gewünschten Zeitraum ab ${customStartDateTime.toISOString()} liefert "${model.name}" keine Daten (evtl. außerhalb des Archivzeitraums).\nAPI-URL: ${url}`);
+        }
+        times = keepIndices.map(i => data.hourly.time[i]);
+        gusts = keepIndices.map(i => data.hourly.wind_gusts_10m[i]);
+        directions = keepIndices.map(i => data.hourly.wind_direction_10m?.[i] ?? null);
+    }
+
     const byTime = new Map();
-    data.hourly.time.forEach((time, i) => {
+    times.forEach((time, i) => {
         byTime.set(time, {
-            gust: data.hourly.wind_gusts_10m?.[i] ?? null,
-            direction: data.hourly.wind_direction_10m?.[i] ?? null
+            gust: gusts[i] ?? null,
+            direction: directions[i] ?? null
         });
     });
     return {
         model,
         url,
-        data,
+        data: { ...data, hourly: { ...data.hourly, time: times, wind_gusts_10m: gusts, wind_direction_10m: directions } },
         byTime,
-        forecastStartDate: new Date(data.hourly.time[0]),
-        forecastEndDate: new Date(data.hourly.time[data.hourly.time.length - 1]),
+        forecastStartDate: new Date(times[0]),
+        forecastEndDate: new Date(times[times.length - 1]),
         loadedAtDate: new Date(),
         error: null
     };
@@ -834,6 +879,17 @@ async function loadWeather() {
     const overrideLon = Number.parseFloat(urlParams.get("lon"));
     const hasOverride = Number.isFinite(overrideLat) && Number.isFinite(overrideLon);
 
+    const startParam = urlParams.get("start");
+    if (startParam) {
+        const parsedStart = new Date(startParam.replace(" ", "T"));
+        customStartDateTime = Number.isNaN(parsedStart.getTime()) ? null : parsedStart;
+        if (startParam && !customStartDateTime) {
+            console.warn(`Konnte ?start=${startParam} nicht als Datum interpretieren - erwartetes Format z.B. 2026-07-18T15:00`);
+        }
+    } else {
+        customStartDateTime = null;
+    }
+
     if (hasOverride) {
         latitude = overrideLat;
         longitude = overrideLon;
@@ -899,7 +955,10 @@ async function loadWeather() {
         `&nbsp;&nbsp;|&nbsp;&nbsp;` +
         `<strong>Modelle:</strong> ICON-EU, Best Match, ICON-D2, ECMWF IFS` +
         `&nbsp;&nbsp;|&nbsp;&nbsp;` +
-        `<strong>Anzeige geladen:</strong> ${formatDateTime(loadedAt)}`;
+        `<strong>Anzeige geladen:</strong> ${formatDateTime(loadedAt)}` +
+        (customStartDateTime instanceof Date && !Number.isNaN(customStartDateTime.getTime())
+            ? `&nbsp;&nbsp;|&nbsp;&nbsp;<strong style="color:#b45309;">Test-Prognosezeitraum (?start=...):</strong> ${formatDateTime(customStartDateTime)}${customStartDateTime.getTime() < Date.now() ? " (Historical Forecast API)" : ""}`
+            : "");
     renderModelCards(results);
     renderUnavailableModelsNote(results, nearestPlace?.nearestLarger || locationLabel);
     createCharts(results);
