@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Böenprognose - 24h Modellvergleich mit Windrose</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background: #f8f9fa;
+    color: #1f2937;
+}
+h2 { margin-bottom: 5px; }
+h3 { margin-top: 34px; margin-bottom: 8px; }
+.subtitle {
+    color: #555;
+    margin-bottom: 16px;
+    font-size: 0.95em;
+    line-height: 1.55;
+}
+.modelGrid {
+    max-width: 1200px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+}
+.modelCard {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 14px;
+    box-sizing: border-box;
+}
+.modelCard h4 {
+    margin: 0 0 8px 0;
+    font-size: 1.05em;
+}
+.modelCard table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92em;
+}
+.modelCard td {
+    padding: 5px 0;
+    border-top: 1px solid #f1f5f9;
+    vertical-align: top;
+}
+.modelCard td:first-child {
+    color: #6b7280;
+    width: 46%;
+}
+.chartBox {
+    max-width: 1200px;
+    height: 460px;
+    margin-bottom: 30px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 14px;
+    box-sizing: border-box;
+}
+.note {
+    max-width: 1200px;
+    font-size: 0.9em;
+    color: #6b7280;
+    margin-top: -4px;
+    margin-bottom: 16px;
+    line-height: 1.45;
+}
+.error {
+    color: #b91c1c;
+    font-weight: 600;
+}
+code {
+    background: #f3f4f6;
+    padding: 1px 4px;
+    border-radius: 4px;
+}
+
+.roseLegend {
+    max-width: 1200px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-top: -18px;
+    margin-bottom: 30px;
+    font-size: 0.92em;
+    color: #374151;
+    line-height: 1.5;
+}
+.roseLegend ul {
+    margin: 6px 0 0 18px;
+    padding: 0;
+}
+.roseLegend li {
+    margin: 3px 0;
+}
+</style>
+</head>
+<body>
+<h2>Böenprognose - aktueller Standort</h2>
+<div id="locationInfo" class="subtitle">Ermittle deinen Standort...</div>
+<div id="forecastInfo" class="subtitle">Lade Prognosedaten...</div>
+<div class="note">
+    Datenquelle: Open-Meteo Forecast API. Vorhersagezeitraum: <strong>24 Stunden</strong>. Vergleich der Modelle <strong>ICON-EU</strong>, <strong>Best Match</strong>, <strong>ICON-D2</strong> und <strong>GeoSphere Seamless (with ECMWF)</strong>. Im Modellvergleich werden ausschließlich <strong>Böen</strong> für die nächsten <strong>24 Stunden</strong> angezeigt. Einheit: Knoten.<br>Die Böenlinien verwenden bewusst stark unterschiedliche Farben für bessere Lesbarkeit im Modellvergleich.<br>
+    Die Windrose zeigt weiterhin die Windrichtung. Diese Diagnose-Version zeigt bei Fehlern die vollständige HTTP-Antwort der Open-Meteo-API inklusive API-URL.<br>
+    Hinweis: <strong>GeoSphere Seamless (with ECMWF)</strong> wird mit <code>models=geosphere_seamless</code> abgefragt. Falls Open-Meteo für deinen Standort keine Daten liefert, erscheint die genaue API-Fehlermeldung in der Modellkarte.<br>
+    Wichtig: <strong>Best Match</strong> wird hier bewusst <strong>ohne</strong> <code>models=...</code>-Parameter abgefragt. Dadurch nutzt Open-Meteo die automatische Standardauswahl für den Standort.
+</div>
+<div id="modelCards" class="modelGrid"></div>
+<h3>Böen - Modellvergleich</h3>
+<div class="chartBox">
+    <canvas id="windChart"></canvas>
+</div>
+<h3>Windrichtungsrose - Modellvergleich</h3>
+<div class="note">
+    Die Windrichtungsrose zeigt, aus welcher Richtung der Wind im Prognosezeitraum kommt. Die Werte werden je Modell auf acht Himmelsrichtungen gruppiert.
+</div>
+<div class="chartBox">
+    <canvas id="directionChart"></canvas>
+</div>
+<div class="roseLegend">
+    <strong>Legende Windrose:</strong>
+    <ul>
+        <li>Die Himmelsrichtungen zeigen, <strong>aus welcher Richtung</strong> der Wind kommt.</li>
+        <li>Die Zahlen auf den konzentrischen Kreisen zeigen die <strong>Anzahl der Prognosestunden innerhalb der nächsten 24 Stunden</strong>.</li>
+        <li>Beispiel: <strong>12 h bei NW</strong> bedeutet: In 12 der nächsten 24 Prognosestunden kommt der Wind aus Nordwest.</li>
+        <li>Die farbigen Flächen/Linien entsprechen den Modellen: ICON-EU, Best Match, ICON-D2 und GeoSphere Seamless (with ECMWF).</li>
+    </ul>
+</div>
+<script>
+const FALLBACK_LATITUDE = 43.40;
+const FALLBACK_LONGITUDE = 16.21;
+const FALLBACK_LABEL = "Maslinica (Šolta) - Standardstandort, da kein Browser-Standort verfügbar war";
+let latitude = FALLBACK_LATITUDE;
+let longitude = FALLBACK_LONGITUDE;
+let locationLabel = FALLBACK_LABEL;
+let usedFallback = false;
+
+function getBrowserLocation() {
+    return new Promise(resolve => {
+        if (!("geolocation" in navigator)) {
+            resolve({ ok: false, reason: "Dieser Browser unterstützt keine Standortermittlung." });
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            position => {
+                resolve({
+                    ok: true,
+                    lat: position.coords.latitude,
+                    lon: position.coords.longitude,
+                    accuracy: position.coords.accuracy
+                });
+            },
+            error => {
+                resolve({ ok: false, reason: error.message || "Standort konnte nicht ermittelt werden." });
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+        );
+    });
+}
+
+async function reverseGeocode(lat, lon) {
+    try {
+        const url = `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&language=de&format=json`;
+        const response = await fetch(url);
+        if (!response.ok) return null;
+        const data = await response.json();
+        const result = data?.results?.[0];
+        if (!result) return null;
+        return [result.name, result.admin1, result.country]
+            .filter(Boolean)
+            .join(", ");
+    } catch {
+        return null;
+    }
+}
+
+const models = [
+    {
+        name: "ICON-EU",
+        id: "icon_eu",
+        apiLabel: "models=icon_eu",
+        colorWind: "#2563eb",
+        colorGust: "#0052cc",
+        colorDirection: "#16a34a",
+        nextForecastHint: "ca. 00/06/12/18 Uhr, sobald der Modelllauf verarbeitet ist"
+    },
+    {
+        name: "Best Match",
+        id: null,
+        apiLabel: "kein models-Parameter",
+        colorWind: "#7c3aed",
+        colorGust: "#ff7a00",
+        colorDirection: "#0891b2",
+        nextForecastHint: "abhängig vom automatisch gewählten Modell"
+    },
+    {
+        name: "ICON-D2",
+        id: "icon_d2",
+        apiLabel: "models=icon_d2",
+        colorWind: "#0f766e",
+        colorGust: "#008a00",
+        colorDirection: "#9333ea",
+        nextForecastHint: "ca. alle 3 Stunden, sofern für den Standort verfügbar"
+    },
+    {
+        name: "GeoSphere Seamless (with ECMWF)",
+        id: "geosphere_seamless",
+        apiLabel: "models=geosphere_seamless",
+        colorWind: "#b45309",
+        colorGust: "#d100d1",
+        colorDirection: "#4f46e5",
+        nextForecastHint: "GeoSphere AROME für den Nahbereich; danach nahtlos mit ECMWF, sofern für den Standort verfügbar"
+    }
+];
+
+function escapeHtml(value) {
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+function buildApiUrl(modelId) {
+    let url =
+        `https://api.open-meteo.com/v1/forecast` +
+        `?latitude=${latitude}` +
+        `&longitude=${longitude}` +
+        `&hourly=wind_gusts_10m,wind_direction_10m` +
+        `&wind_speed_unit=kn` +
+        `&timezone=auto` +
+        `&forecast_hours=24`;
+    // Best Match = kein models-Parameter.
+    // Nur explizite Modelle wie ICON-EU, ICON-D2 und GeoSphere Seamless bekommen &models=...
+    if (modelId) {
+        url += `&models=${modelId}`;
+    }
+    return url;
+}
+function getNextExpectedForecastTime(fromDate) {
+    const next = new Date(fromDate);
+    const hour = next.getHours();
+    const nextRun = hour < 6 ? 6 : hour < 12 ? 12 : hour < 18 ? 18 : 24;
+    next.setMinutes(0, 0, 0);
+    if (nextRun === 24) {
+        next.setDate(next.getDate() + 1);
+        next.setHours(0);
+    } else {
+        next.setHours(nextRun);
+    }
+    return next;
+}
+function directionText(deg) {
+    if (deg === null || deg === undefined || Number.isNaN(Number(deg))) return "-";
+    const dirs = ["N", "NO", "O", "SO", "S", "SW", "W", "NW"];
+    const normalized = (((Number(deg) % 360) + 360) % 360);
+    const index = Math.round(normalized / 45) % 8;
+    return dirs[index];
+}
+function formatDateTime(date) {
+    return date.toLocaleString("de-DE", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+    });
+}
+function formatLabel(timeString) {
+    return new Date(timeString).toLocaleString("de-DE", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit"
+    });
+}
+async function fetchModel(model) {
+    const url = buildApiUrl(model.id);
+    console.log(`${model.name} API-URL:`, url);
+    const response = await fetch(url);
+    const responseText = await response.text();
+
+    let data;
+    try {
+        data = responseText ? JSON.parse(responseText) : {};
+    } catch (parseError) {
+        data = null;
+    }
+
+    if (!response.ok) {
+        const detail = data
+            ? JSON.stringify(data, null, 2)
+            : (responseText || "Keine Antwortdetails vom Server erhalten.");
+        throw new Error(`HTTP ${response.status} ${response.statusText}\nAPI-URL: ${url}\nAntwort:\n${detail}`);
+    }
+
+    if (!data || !data.hourly || !data.hourly.time || data.hourly.time.length === 0) {
+        throw new Error(`Keine stündlichen Prognosedaten im API-Ergebnis gefunden.\nAPI-URL: ${url}\nAntwort:\n${responseText || "leer"}`);
+    }
+    const byTime = new Map();
+    data.hourly.time.forEach((time, i) => {
+        byTime.set(time, {
+            gust: data.hourly.wind_gusts_10m?.[i] ?? null,
+            direction: data.hourly.wind_direction_10m?.[i] ?? null
+        });
+    });
+    return {
+        model,
+        url,
+        data,
+        byTime,
+        forecastStartDate: new Date(data.hourly.time[0]),
+        forecastEndDate: new Date(data.hourly.time[data.hourly.time.length - 1]),
+        loadedAtDate: new Date(),
+        error: null
+    };
+}
+function renderModelCards(results) {
+    const cards = results.map(r => {
+        if (r.error) {
+            return `<div class="modelCard">
+                <h4>${r.model.name}</h4>
+                <table>
+                    <tr><td>API-Aufruf</td><td><code>${r.model.apiLabel}</code></td></tr>
+                    <tr><td>Status</td><td><span class="error">Fehler beim Laden:</span><br><pre style="white-space:pre-wrap; margin:6px 0 0 0; font-size:0.85em; color:#7f1d1d; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:8px;">${escapeHtml(r.error)}</pre></td></tr>
+                </table>
+            </div>`;
+        }
+        const nextForecastDate = getNextExpectedForecastTime(r.loadedAtDate);
+        return `<div class="modelCard">
+            <h4>${r.model.name}</h4>
+            <table>
+                <tr><td>API-Aufruf</td><td><code>${r.model.apiLabel}</code></td></tr>
+                <tr><td>Prognosebeginn</td><td>${formatDateTime(r.forecastStartDate)}</td></tr>
+                <tr><td>Prognoseende</td><td>${formatDateTime(r.forecastEndDate)}</td></tr>
+                <tr><td>Daten geladen</td><td>${formatDateTime(r.loadedAtDate)}</td></tr>
+                <tr><td>Nächste Prognose voraussichtlich</td><td>${formatDateTime(nextForecastDate)}<br><span style="color:#6b7280">${r.model.nextForecastHint}</span></td></tr>
+            </table>
+        </div>`;
+    }).join("");
+    document.getElementById("modelCards").innerHTML = cards;
+}
+function valueArray(result, allTimes, field) {
+    if (result.error) return allTimes.map(() => null);
+    return allTimes.map(t => result.byTime.get(t)?.[field] ?? null);
+}
+
+function directionBucket(deg) {
+    if (deg === null || deg === undefined || Number.isNaN(Number(deg))) return null;
+    const normalized = (((Number(deg) % 360) + 360) % 360);
+    return Math.round(normalized / 45) % 8;
+}
+function directionRoseData(result) {
+    const buckets = Array(8).fill(0);
+    if (result.error || !result.data || !result.data.hourly || !result.data.hourly.wind_direction_10m) return buckets;
+    result.data.hourly.wind_direction_10m.forEach(deg => {
+        const bucket = directionBucket(deg);
+        if (bucket !== null) buckets[bucket] += 1;
+    });
+    return buckets;
+}
+function hexToRgba(hex, alpha) {
+    const cleaned = hex.replace("#", "");
+    const bigint = parseInt(cleaned, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function createCharts(results) {
+    const successful = results.filter(r => !r.error);
+    if (successful.length === 0) throw new Error("Keines der Modelle lieferte verwertbare Daten.");
+    const allTimes = Array.from(new Set(successful.flatMap(r => r.data.hourly.time))).sort();
+    const labels = allTimes.map(formatLabel);
+    const windDatasets = [];
+    const directionDatasets = [];
+    results.forEach(r => {
+        if (r.error) return;
+        windDatasets.push({
+            label: `${r.model.name} - Böen`,
+            data: valueArray(r, allTimes, "gust"),
+            borderColor: r.model.colorGust,
+            backgroundColor: r.model.colorGust,
+            borderWidth: 3,
+            tension: 0.3,
+            spanGaps: true
+        });
+        directionDatasets.push({
+            label: `${r.model.name} - Windrichtungsrose`,
+            data: directionRoseData(r),
+            borderColor: r.model.colorDirection,
+            backgroundColor: hexToRgba(r.model.colorDirection, 0.28),
+            borderWidth: 2
+        });
+    });
+    new Chart(document.getElementById("windChart"), {
+        type: "line",
+        data: { labels, datasets: windDatasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
+            plugins: {
+                legend: { position: "top" },
+                tooltip: {
+                    callbacks: {
+                        label: context => `${context.dataset.label}: ${context.raw ?? "-"} kn`
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: "Böen [kn]" }
+                }
+            }
+        }
+    });
+    const roseLabels = ["N", "NO", "O", "SO", "S", "SW", "W", "NW"];
+    new Chart(document.getElementById("directionChart"), {
+        type: "radar",
+        data: { labels: roseLabels, datasets: directionDatasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            elements: {
+                line: { tension: 0.15 }
+            },
+            plugins: {
+                legend: { position: "top" },
+                tooltip: {
+                    callbacks: {
+                        label: context => `${context.dataset.label}: ${context.raw} Stunden`
+                    }
+                }
+            },
+            scales: {
+                r: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0,
+                        backdropColor: "transparent",
+                        callback: value => value + " h"
+                    },
+                    pointLabels: { font: { size: 13 } },
+                    title: { display: true, text: "Häufigkeit der Windrichtung [Stunden]" }
+                }
+            }
+        }
+    });
+}
+async function loadWeather() {
+    const locationInfoEl = document.getElementById("locationInfo");
+    const locResult = await getBrowserLocation();
+    if (locResult.ok) {
+        latitude = locResult.lat;
+        longitude = locResult.lon;
+        usedFallback = false;
+        locationInfoEl.textContent = "Ermittle Ortsnamen für deinen Standort...";
+        const name = await reverseGeocode(latitude, longitude);
+        locationLabel = name || `Aktueller Standort (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+    } else {
+        latitude = FALLBACK_LATITUDE;
+        longitude = FALLBACK_LONGITUDE;
+        locationLabel = FALLBACK_LABEL;
+        usedFallback = true;
+        locationInfoEl.innerHTML = `<span class="error">Standort nicht verfügbar (${escapeHtml(locResult.reason)}).</span> Es wird der Standardstandort Maslinica verwendet.`;
+    }
+
+    const results = await Promise.all(models.map(async model => {
+        try {
+            return await fetchModel(model);
+        } catch (err) {
+            console.error(`${model.name} Fehler:`, err);
+            return { model, error: err.message };
+        }
+    }));
+    console.log("Modell-Ergebnisse:", results);
+    const loadedAt = new Date();
+    if (!usedFallback) {
+        locationInfoEl.textContent = `Standort: ${locationLabel}`;
+    }
+    document.getElementById("forecastInfo").innerHTML =
+        `<strong>Ort:</strong> ${escapeHtml(locationLabel)}, ${latitude.toFixed(4)}, ${longitude.toFixed(4)}` +
+        `&nbsp;&nbsp;|&nbsp;&nbsp;` +
+        `<strong>Modelle:</strong> ICON-EU, Best Match, ICON-D2 und GeoSphere Seamless (with ECMWF)` +
+        `&nbsp;&nbsp;|&nbsp;&nbsp;` +
+        `<strong>Anzeige geladen:</strong> ${formatDateTime(loadedAt)}`;
+    renderModelCards(results);
+    createCharts(results);
+}
+loadWeather().catch(error => {
+    document.getElementById("forecastInfo").innerHTML = "Fehler beim Laden: " + error.message;
+    console.error(error);
+});
+</script>
+</body>
+</html>
