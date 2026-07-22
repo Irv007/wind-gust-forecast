@@ -470,6 +470,7 @@ const models = [
         name: "ICON-EU",
         id: "icon_eu",
         apiLabel: "models=icon_eu",
+        resolution: "~7 km (0,0625°)",
         colorWind: "#2563eb",
         colorGust: "#0052cc",
         colorDirection: "#16a34a",
@@ -479,6 +480,7 @@ const models = [
         name: "Best Match",
         id: null,
         apiLabel: "kein models-Parameter",
+        resolution: "variiert (abhängig vom automatisch gewählten Modell)",
         colorWind: "#7c3aed",
         colorGust: "#ff7a00",
         colorDirection: "#0891b2",
@@ -488,6 +490,7 @@ const models = [
         name: "ICON-D2",
         id: "icon_d2",
         apiLabel: "models=icon_d2",
+        resolution: "~2 km (0,02°)",
         colorWind: "#0f766e",
         colorGust: "#008a00",
         colorDirection: "#9333ea",
@@ -497,6 +500,7 @@ const models = [
         name: "ECMWF IFS",
         id: "ecmwf_ifs025",
         apiLabel: "models=ecmwf_ifs025",
+        resolution: "~25 km (0,25°)",
         colorWind: "#334155",
         colorGust: "#dc2626",
         colorDirection: "#ca8a04",
@@ -619,6 +623,7 @@ function renderModelCards(results) {
             <h4>${r.model.name}</h4>
             <table>
                 <tr><td>API-Aufruf</td><td><code>${r.model.apiLabel}</code></td></tr>
+                <tr><td>Auflösung</td><td>${escapeHtml(r.model.resolution || "-")}</td></tr>
                 <tr><td>Prognosebeginn</td><td>${formatDateTime(r.forecastStartDate)}</td></tr>
                 <tr><td>Prognoseende</td><td>${formatDateTime(r.forecastEndDate)}</td></tr>
                 <tr><td>Daten geladen</td><td>${formatDateTime(r.loadedAtDate)}</td></tr>
