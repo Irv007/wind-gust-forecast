@@ -373,7 +373,8 @@ async function reverseGeocodeNearestPlace(lat, lon) {
         const data = await response.json();
         const addr = data.address || {};
         const isGreece = addr.country_code === "gr";
-        let nearestLarger = addr.city || addr.town || addr.municipality || addr.county || addr.state || null;
+        let nearestLarger = addr.city || addr.town || addr.village || addr.municipality
+            || addr.hamlet || addr.island || addr.county || addr.state || null;
         let country = addr.country || null;
         let state = addr.state || null;
         const islandNameRaw = addr.island || null;
