@@ -161,6 +161,15 @@ code {
         <li>Die farbigen Flächen/Linien entsprechen den Modellen: ICON-EU, Best Match, ICON-D2 und ECMWF IFS.</li>
     </ul>
 </div>
+<div class="roseLegend">
+    <strong>Legende URL-Parameter (optional, zum Testen):</strong>
+    <ul>
+        <li><code>?lat=</code> und <code>?lon=</code> - Test-Standort statt Browser-Geolocation, z. B. <code>?lat=44.6362&amp;lon=14.2440</code>. Beide Parameter müssen gemeinsam angegeben werden.</li>
+        <li><code>?start=</code> - Test-Startzeitpunkt der 24h-Prognose statt "jetzt", Format <code>JJJJ-MM-TTTHH:mm</code>, z. B. <code>?start=2026-07-18T15:00</code>. Liegt der Zeitpunkt in der Vergangenheit, wird automatisch die Historical Forecast API von Open-Meteo verwendet (archivierte Modellläufe); in der Zukunft/ohne Angabe die normale Live-Forecast-API.</li>
+        <li>Kombinierbar, z. B.: <code>?lat=44.6362&amp;lon=14.2440&amp;start=2026-07-18T15:00</code></li>
+        <li>Ohne jeden Parameter: aktueller Browser-Standort (mit Fallback auf Maslinica) und die kommenden 24 Stunden ab jetzt.</li>
+    </ul>
+</div>
 <h3>Grobe Lage in Europa</h3>
 <div class="note">
     Stark vereinfachte Übersichtskarte (grober Küstenumriss, keine exakten Grenzen) zur groben Orientierung, wo sich der abgefragte Standort befindet. Graue Punkte sind Referenzstädte, der rote Punkt markiert deinen aktuellen bzw. verwendeten Standort.
