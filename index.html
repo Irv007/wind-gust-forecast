@@ -365,6 +365,62 @@ async function fetchIslandBounds(islandNameRaw, countryCode) {
     }
 }
 
+function bboxArea(b) {
+    return Math.max(0, b.north - b.south) * Math.max(0, b.east - b.west);
+}
+function pointInBBox(lat, lon, b) {
+    return lat >= b.south && lat <= b.north && lon >= b.west && lon <= b.east;
+}
+
+// Zuverlässigere Insel-Erkennung über die Overpass-API (rohe OSM-Daten statt Nominatim-Adresshierarchie,
+// da viele Inseln in OSM nur als Punkt getaggt sind und daher bei Nominatims addressdetails nicht als
+// "island" in der Adresse eines enthaltenen Ortes auftauchen).
+async function findNearbyIsland(lat, lon) {
+    try {
+        const radius = 100000; // 100 km - Treffer werden unten per Bounding-Box-Enthaltensein validiert
+        const query = `[out:json][timeout:20];(node["place"="island"](around:${radius},${lat},${lon});way["place"="island"](around:${radius},${lat},${lon});relation["place"="island"](around:${radius},${lat},${lon}););out tags center bb;`;
+        const response = await fetch("https://overpass-api.de/api/interpreter", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: "data=" + encodeURIComponent(query)
+        });
+        if (!response.ok) return null;
+        const data = await response.json();
+        const elements = data.elements || [];
+        if (elements.length === 0) return null;
+
+        const candidates = elements.map(el => {
+            const tags = el.tags || {};
+            const nameRaw = tags.name || null;
+            const nameLatin = tags["name:de"] || tags["name:en"] || tags.int_name || null;
+            const bounds = el.bounds ? {
+                south: el.bounds.minlat, north: el.bounds.maxlat,
+                west: el.bounds.minlon, east: el.bounds.maxlon
+            } : null;
+            const center = el.center || (el.type === "node" ? { lat: el.lat, lon: el.lon } : null);
+            return { nameRaw, nameLatin, bounds, center };
+        }).filter(c => c.nameRaw && (c.bounds || c.center));
+
+        // 1) Bevorzugt: Insel, deren Bounding Box den Standort tatsächlich enthält (kleinste Fläche gewinnt bei mehreren Treffern)
+        const containing = candidates
+            .filter(c => c.bounds && pointInBBox(lat, lon, c.bounds))
+            .sort((a, b) => bboxArea(a.bounds) - bboxArea(b.bounds));
+        if (containing.length > 0) return containing[0];
+
+        // 2) Fallback: nur punktförmig getaggte Insel in unmittelbarer Nähe (< 5 km)
+        const nearPoint = candidates
+            .filter(c => !c.bounds && c.center)
+            .map(c => ({ ...c, dist: haversineDistanceKm(lat, lon, c.center.lat, c.center.lon) }))
+            .filter(c => c.dist < 5)
+            .sort((a, b) => a.dist - b.dist);
+        if (nearPoint.length > 0) return nearPoint[0];
+
+        return null;
+    } catch {
+        return null;
+    }
+}
+
 let islandLeafletMap = null;
 function showIslandMap(lat, lon, islandDisplayName, bounds) {
     const section = document.getElementById("islandMapSection");
@@ -750,9 +806,19 @@ async function loadWeather() {
         nearestPlaceNameEl.textContent = "konnte nicht ermittelt werden";
     }
     updateEuropeMapMarker(latitude, longitude, nearestPlace?.nearestLarger || (usedFallback ? "Maslinica" : "Standort"));
+
+    let islandMatch = null;
     if (nearestPlace?.islandNameRaw) {
+        // Nominatim hat direkt ein island-Feld geliefert (seltener Fall) - Bounding Box separat nachladen.
         const bounds = await fetchIslandBounds(nearestPlace.islandNameRaw, nearestPlace.countryCode);
-        showIslandMap(latitude, longitude, nearestPlace.islandName, bounds);
+        islandMatch = { nameRaw: nearestPlace.islandNameRaw, nameLatin: nearestPlace.islandName, bounds };
+    } else {
+        islandMatch = await findNearbyIsland(latitude, longitude);
+    }
+    if (islandMatch) {
+        let displayName = islandMatch.nameLatin || islandMatch.nameRaw;
+        if (GREEK_CHAR_REGEX.test(displayName)) displayName = transliterateGreek(displayName);
+        showIslandMap(latitude, longitude, displayName, islandMatch.bounds);
     } else {
         hideIslandMap();
     }
