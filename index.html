@@ -103,6 +103,10 @@ code {
 </head>
 <body>
 <h2>Böenprognose - aktueller Standort</h2>
+<h3>Böen - Modellvergleich</h3>
+<div class="chartBox">
+    <canvas id="windChart"></canvas>
+</div>
 <h3 id="nearestPlaceHeading" style="margin-top:0; color:#374151;">Nächstgelegener größerer Ort: <span id="nearestPlaceName">wird ermittelt...</span></h3>
 <div id="locationInfo" class="subtitle">Ermittle deinen Standort...</div>
 <div id="forecastInfo" class="subtitle">Lade Prognosedaten...</div>
@@ -113,10 +117,6 @@ code {
     Wichtig: <strong>Best Match</strong> wird hier bewusst <strong>ohne</strong> <code>models=...</code>-Parameter abgefragt. Dadurch nutzt Open-Meteo die automatische Standardauswahl für den Standort.
 </div>
 <div id="modelCards" class="modelGrid"></div>
-<h3>Böen - Modellvergleich</h3>
-<div class="chartBox">
-    <canvas id="windChart"></canvas>
-</div>
 <h3>Windrichtungsrose - Modellvergleich</h3>
 <div class="note">
     Die Windrichtungsrose zeigt, aus welcher Richtung der Wind im Prognosezeitraum kommt. Die Werte werden je Modell auf acht Himmelsrichtungen gruppiert.
