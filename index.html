@@ -113,6 +113,26 @@ code {
     Wichtig: <strong>Best Match</strong> wird hier bewusst <strong>ohne</strong> <code>models=...</code>-Parameter abgefragt. Dadurch nutzt Open-Meteo die automatische Standardauswahl für den Standort.
 </div>
 <div id="modelCards" class="modelGrid"></div>
+<h3>Böen - Modellvergleich</h3>
+<div class="chartBox">
+    <canvas id="windChart"></canvas>
+</div>
+<h3>Windrichtungsrose - Modellvergleich</h3>
+<div class="note">
+    Die Windrichtungsrose zeigt, aus welcher Richtung der Wind im Prognosezeitraum kommt. Die Werte werden je Modell auf acht Himmelsrichtungen gruppiert.
+</div>
+<div class="chartBox">
+    <canvas id="directionChart"></canvas>
+</div>
+<div class="roseLegend">
+    <strong>Legende Windrose:</strong>
+    <ul>
+        <li>Die Himmelsrichtungen zeigen, <strong>aus welcher Richtung</strong> der Wind kommt.</li>
+        <li>Die Zahlen auf den konzentrischen Kreisen zeigen die <strong>Anzahl der Prognosestunden innerhalb der nächsten 24 Stunden</strong>.</li>
+        <li>Beispiel: <strong>12 h bei NW</strong> bedeutet: In 12 der nächsten 24 Prognosestunden kommt der Wind aus Nordwest.</li>
+        <li>Die farbigen Flächen/Linien entsprechen den Modellen: ICON-EU, Best Match, ICON-D2 und GeoSphere Seamless (with ECMWF).</li>
+    </ul>
+</div>
 <h3>Grobe Lage in Europa</h3>
 <div class="note">
     Stark vereinfachte Übersichtskarte (grober Küstenumriss, keine exakten Grenzen) zur groben Orientierung, wo sich der abgefragte Standort befindet. Graue Punkte sind Referenzstädte, der rote Punkt markiert deinen aktuellen bzw. verwendeten Standort.
@@ -161,26 +181,6 @@ code {
     </svg>
 </div>
 <div class="note" id="mapNote"></div>
-<h3>Böen - Modellvergleich</h3>
-<div class="chartBox">
-    <canvas id="windChart"></canvas>
-</div>
-<h3>Windrichtungsrose - Modellvergleich</h3>
-<div class="note">
-    Die Windrichtungsrose zeigt, aus welcher Richtung der Wind im Prognosezeitraum kommt. Die Werte werden je Modell auf acht Himmelsrichtungen gruppiert.
-</div>
-<div class="chartBox">
-    <canvas id="directionChart"></canvas>
-</div>
-<div class="roseLegend">
-    <strong>Legende Windrose:</strong>
-    <ul>
-        <li>Die Himmelsrichtungen zeigen, <strong>aus welcher Richtung</strong> der Wind kommt.</li>
-        <li>Die Zahlen auf den konzentrischen Kreisen zeigen die <strong>Anzahl der Prognosestunden innerhalb der nächsten 24 Stunden</strong>.</li>
-        <li>Beispiel: <strong>12 h bei NW</strong> bedeutet: In 12 der nächsten 24 Prognosestunden kommt der Wind aus Nordwest.</li>
-        <li>Die farbigen Flächen/Linien entsprechen den Modellen: ICON-EU, Best Match, ICON-D2 und GeoSphere Seamless (with ECMWF).</li>
-    </ul>
-</div>
 <script>
 const FALLBACK_LATITUDE = 43.40;
 const FALLBACK_LONGITUDE = 16.21;
