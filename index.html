@@ -589,18 +589,31 @@ function createCharts(results) {
 async function loadWeather() {
     const locationInfoEl = document.getElementById("locationInfo");
     const nearestPlaceNameEl = document.getElementById("nearestPlaceName");
-    const locResult = await getBrowserLocation();
     let nearestPlace = null;
-    if (locResult.ok) {
-        latitude = locResult.lat;
-        longitude = locResult.lon;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const overrideLat = Number.parseFloat(urlParams.get("lat"));
+    const overrideLon = Number.parseFloat(urlParams.get("lon"));
+    const hasOverride = Number.isFinite(overrideLat) && Number.isFinite(overrideLon);
+
+    if (hasOverride) {
+        latitude = overrideLat;
+        longitude = overrideLon;
         usedFallback = false;
-        locationInfoEl.textContent = "Ermittle Ortsnamen für deinen Standort...";
+        locationInfoEl.textContent = `Test-Standort per URL-Parameter (?lat=${overrideLat}&lon=${overrideLon}) - Ermittle Ortsnamen...`;
     } else {
-        latitude = FALLBACK_LATITUDE;
-        longitude = FALLBACK_LONGITUDE;
-        usedFallback = true;
-        locationInfoEl.innerHTML = `<span class="error">Standort nicht verfügbar (${escapeHtml(locResult.reason)}).</span> Es wird der Standardstandort Maslinica verwendet.`;
+        const locResult = await getBrowserLocation();
+        if (locResult.ok) {
+            latitude = locResult.lat;
+            longitude = locResult.lon;
+            usedFallback = false;
+            locationInfoEl.textContent = "Ermittle Ortsnamen für deinen Standort...";
+        } else {
+            latitude = FALLBACK_LATITUDE;
+            longitude = FALLBACK_LONGITUDE;
+            usedFallback = true;
+            locationInfoEl.innerHTML = `<span class="error">Standort nicht verfügbar (${escapeHtml(locResult.reason)}).</span> Es wird der Standardstandort Maslinica verwendet.`;
+        }
     }
 
     nearestPlace = await reverseGeocodeNearestPlace(latitude, longitude);
