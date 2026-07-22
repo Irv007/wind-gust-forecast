@@ -7,6 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
 body {
     font-family: Arial, sans-serif;
@@ -15,6 +16,26 @@ body {
     color: #1f2937;
 }
 h2 { margin-bottom: 5px; }
+#pdfDownloadBtn {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 1000;
+    background: #2563eb;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 0.9em;
+    font-family: Arial, sans-serif;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+#pdfDownloadBtn:hover { background: #1d4ed8; }
+#pdfDownloadBtn:disabled { background: #93c5fd; cursor: wait; }
+@media (max-width: 640px) {
+    #pdfDownloadBtn { top: 8px; right: 8px; padding: 8px 12px; font-size: 0.8em; }
+}
 h3 { margin-top: 34px; margin-bottom: 8px; }
 .subtitle {
     color: #555;
@@ -104,6 +125,7 @@ code {
 </style>
 </head>
 <body>
+<button id="pdfDownloadBtn" onclick="downloadPageAsPdf()">📄 Als PDF speichern</button>
 <h2>Böenprognose - aktueller Standort</h2>
 <h3>Böen - Modellvergleich</h3>
 <div class="note" style="margin-top:-6px;">
@@ -197,6 +219,34 @@ code {
     </div>
 </div>
 <script>
+function downloadPageAsPdf() {
+    const btn = document.getElementById("pdfDownloadBtn");
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Erstelle PDF...";
+    btn.style.display = "none"; // Button selbst nicht mit ins PDF aufnehmen
+
+    const opt = {
+        margin: 8,
+        filename: `boeenprognose_${new Date().toISOString().slice(0, 10)}.pdf`,
+        image: { type: "jpeg", quality: 0.95 },
+        html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false, backgroundColor: "#f8f9fa" },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ["css", "legacy"] }
+    };
+
+    html2pdf().set(opt).from(document.body).save()
+        .catch(err => {
+            console.error("PDF-Erstellung fehlgeschlagen:", err);
+            alert("PDF konnte nicht erstellt werden: " + err.message);
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.textContent = originalText;
+            btn.style.display = "";
+        });
+}
+
 const FALLBACK_LATITUDE = 43.40;
 const FALLBACK_LONGITUDE = 16.21;
 const FALLBACK_LABEL = "Maslinica (Šolta) - Standardstandort, da kein Browser-Standort verfügbar war";
