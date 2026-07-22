@@ -250,6 +250,17 @@ function updateEuropeMapMarker(lat, lon, label) {
     }
 }
 
+function haversineDistanceKm(lat1, lon1, lat2, lon2) {
+    const toRad = deg => deg * Math.PI / 180;
+    const R = 6371;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
 async function reverseGeocodeNearestPlace(lat, lon) {
     try {
         const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`;
@@ -260,7 +271,12 @@ async function reverseGeocodeNearestPlace(lat, lon) {
         const nearestLarger = addr.city || addr.town || addr.municipality || addr.county || addr.state || null;
         const country = addr.country || null;
         const displayLabel = [nearestLarger, addr.state, country].filter(Boolean).join(", ");
-        return { nearestLarger, country, displayLabel };
+        const placeLat = Number.parseFloat(data.lat);
+        const placeLon = Number.parseFloat(data.lon);
+        const distanceKm = Number.isFinite(placeLat) && Number.isFinite(placeLon)
+            ? haversineDistanceKm(lat, lon, placeLat, placeLon)
+            : null;
+        return { nearestLarger, country, displayLabel, placeLat, placeLon, distanceKm };
     } catch {
         return null;
     }
@@ -590,22 +606,30 @@ async function loadWeather() {
         longitude = locResult.lon;
         usedFallback = false;
         locationInfoEl.textContent = "Ermittle Ortsnamen für deinen Standort...";
-        nearestPlace = await reverseGeocodeNearestPlace(latitude, longitude);
-        locationLabel = nearestPlace?.displayLabel || `Aktueller Standort (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
-        if (nearestPlace?.nearestLarger) {
-            nearestPlaceNameEl.textContent = nearestPlace.country
-                ? `${nearestPlace.nearestLarger}, ${nearestPlace.country}`
-                : nearestPlace.nearestLarger;
-        } else {
-            nearestPlaceNameEl.textContent = "konnte nicht ermittelt werden";
-        }
     } else {
         latitude = FALLBACK_LATITUDE;
         longitude = FALLBACK_LONGITUDE;
-        locationLabel = FALLBACK_LABEL;
         usedFallback = true;
         locationInfoEl.innerHTML = `<span class="error">Standort nicht verfügbar (${escapeHtml(locResult.reason)}).</span> Es wird der Standardstandort Maslinica verwendet.`;
-        nearestPlaceNameEl.textContent = "Split, Kroatien (Standardstandort)";
+    }
+
+    nearestPlace = await reverseGeocodeNearestPlace(latitude, longitude);
+    locationLabel = usedFallback
+        ? FALLBACK_LABEL
+        : (nearestPlace?.displayLabel || `Aktueller Standort (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
+
+    if (nearestPlace?.nearestLarger) {
+        const distanceText = Number.isFinite(nearestPlace.distanceKm)
+            ? `, ca. ${nearestPlace.distanceKm.toFixed(1)} km entfernt`
+            : "";
+        const placeText = nearestPlace.country
+            ? `${nearestPlace.nearestLarger}, ${nearestPlace.country}`
+            : nearestPlace.nearestLarger;
+        nearestPlaceNameEl.textContent = usedFallback
+            ? `${placeText}${distanceText} (Standardstandort)`
+            : `${placeText}${distanceText}`;
+    } else {
+        nearestPlaceNameEl.textContent = "konnte nicht ermittelt werden";
     }
     updateEuropeMapMarker(latitude, longitude, nearestPlace?.nearestLarger || (usedFallback ? "Maslinica" : "Standort"));
 
