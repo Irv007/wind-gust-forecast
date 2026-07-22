@@ -469,8 +469,20 @@ function createCharts(results) {
     const labels = allTimes.map(formatLabel);
     const windDatasets = [];
     const directionDatasets = [];
-    results.forEach(r => {
-        if (r.error) return;
+    // Priorität für die Böen-Linien: bei identischen Werten soll die Farbe des Modells
+    // mit der höheren Priorität sichtbar sein (= zuletzt gezeichnet = oben).
+    // Prio 1 Best Match, 2 ICON-D2, 3 ICON-EU, 4 GeoSphere -> Zeichenreihenfolge umgekehrt (4,3,2,1).
+    const WIND_DRAW_PRIORITY = {
+        "Best Match": 1,
+        "ICON-D2": 2,
+        "ICON-EU": 3,
+        "GeoSphere Seamless (with ECMWF)": 4
+    };
+    const windDrawOrder = results
+        .filter(r => !r.error)
+        .slice()
+        .sort((a, b) => (WIND_DRAW_PRIORITY[b.model.name] ?? 99) - (WIND_DRAW_PRIORITY[a.model.name] ?? 99));
+    windDrawOrder.forEach(r => {
         windDatasets.push({
             label: `${r.model.name} - Böen`,
             data: valueArray(r, allTimes, "gust"),
@@ -480,6 +492,9 @@ function createCharts(results) {
             tension: 0.3,
             spanGaps: true
         });
+    });
+    results.forEach(r => {
+        if (r.error) return;
         directionDatasets.push({
             label: `${r.model.name} - Windrichtungsrose`,
             data: directionRoseData(r),
