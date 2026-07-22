@@ -442,9 +442,10 @@ function showIslandMap(lat, lon, islandDisplayName, bounds) {
     nameLabel.textContent = islandDisplayName || "";
     if (!islandLeafletMap) {
         islandLeafletMap = L.map("islandMapContainer");
-        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        L.tileLayer("https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}{r}.png?lang=de", {
             maxZoom: 18,
-            attribution: "© OpenStreetMap-Mitwirkende"
+            maxNativeZoom: 18,
+            attribution: "Kartendarstellung: Wikimedia | Kartendaten: © OpenStreetMap-Mitwirkende"
         }).addTo(islandLeafletMap);
         islandLeafletMap.userMarker = L.marker([lat, lon]).addTo(islandLeafletMap);
     } else {
