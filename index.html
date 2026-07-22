@@ -261,16 +261,58 @@ function haversineDistanceKm(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
+const GREEK_CHAR_REGEX = /[\u0370-\u03FF\u1F00-\u1FFF]/;
+
+function transliterateGreek(text) {
+    if (!text || !GREEK_CHAR_REGEX.test(text)) return text;
+    // Akzente entfernen (z.B. ή -> η, έ -> ε), dann Digraphen und Einzelbuchstaben übertragen.
+    const stripped = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").normalize("NFC");
+    const digraphs = [
+        ["ου", "ou"], ["αι", "e"], ["ει", "i"], ["οι", "i"], ["υι", "yi"],
+        ["αυ", "av"], ["ευ", "ev"], ["ηυ", "iv"],
+        ["γγ", "ng"], ["γκ", "gk"], ["μπ", "b"], ["ντ", "d"], ["τσ", "ts"], ["τζ", "tz"]
+    ];
+    const singles = {
+        "α": "a", "β": "v", "γ": "g", "δ": "d", "ε": "e", "ζ": "z", "η": "i", "θ": "th",
+        "ι": "i", "κ": "k", "λ": "l", "μ": "m", "ν": "n", "ξ": "x", "ο": "o", "π": "p",
+        "ρ": "r", "σ": "s", "ς": "s", "τ": "t", "υ": "y", "φ": "f", "χ": "ch", "ψ": "ps", "ω": "o"
+    };
+    let out = "";
+    const lower = stripped.toLowerCase();
+    for (let i = 0; i < lower.length; i++) {
+        const two = lower.slice(i, i + 2);
+        const digraph = digraphs.find(([g]) => g === two);
+        if (digraph) {
+            out += digraph[1];
+            i++;
+            continue;
+        }
+        const ch = lower[i];
+        out += singles[ch] ?? ch;
+    }
+    // Jedes Wort großschreiben (Ortsnamen-Konvention)
+    return out.replace(/\b\p{L}/gu, c => c.toUpperCase());
+}
+
 async function reverseGeocodeNearestPlace(lat, lon) {
     try {
         const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`;
-        const response = await fetch(url, { headers: { "Accept-Language": "de" } });
+        const response = await fetch(url, { headers: { "Accept-Language": "de,en;q=0.8" } });
         if (!response.ok) return null;
         const data = await response.json();
         const addr = data.address || {};
-        const nearestLarger = addr.city || addr.town || addr.municipality || addr.county || addr.state || null;
-        const country = addr.country || null;
-        const displayLabel = [nearestLarger, addr.state, country].filter(Boolean).join(", ");
+        const isGreece = addr.country_code === "gr";
+        let nearestLarger = addr.city || addr.town || addr.municipality || addr.county || addr.state || null;
+        let country = addr.country || null;
+        let state = addr.state || null;
+        if (isGreece) {
+            // Für griechische Orte immer die lateinische/deutsche Schreibweise verwenden,
+            // auch wenn Nominatim keine de/en-Übersetzung für dieses Feature hatte.
+            nearestLarger = transliterateGreek(nearestLarger);
+            country = transliterateGreek(country) || "Griechenland";
+            state = transliterateGreek(state);
+        }
+        const displayLabel = [nearestLarger, state, country].filter(Boolean).join(", ");
         const placeLat = Number.parseFloat(data.lat);
         const placeLon = Number.parseFloat(data.lon);
         const distanceKm = Number.isFinite(placeLat) && Number.isFinite(placeLon)
