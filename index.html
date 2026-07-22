@@ -386,6 +386,11 @@ async function fetchModel(model) {
     if (!data || !data.hourly || !data.hourly.time || data.hourly.time.length === 0) {
         throw new Error(`Keine stündlichen Prognosedaten im API-Ergebnis gefunden.\nAPI-URL: ${url}\nAntwort:\n${responseText || "leer"}`);
     }
+    const gustSeries = data.hourly.wind_gusts_10m || [];
+    const hasGustData = gustSeries.some(v => v !== null && v !== undefined && !Number.isNaN(Number(v)));
+    if (!hasGustData) {
+        throw new Error(`Das Modell "${model.name}" liefert für diesen Standort nur leere/null-Werte bei den Böen - der Standort liegt vermutlich außerhalb des Abdeckungsbereichs dieses Modells.\nAPI-URL: ${url}`);
+    }
     const byTime = new Map();
     data.hourly.time.forEach((time, i) => {
         byTime.set(time, {
