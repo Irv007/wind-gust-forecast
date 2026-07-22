@@ -103,6 +103,7 @@ code {
 </head>
 <body>
 <h2>Böenprognose - aktueller Standort</h2>
+<h3 id="nearestPlaceHeading" style="margin-top:0; color:#374151;">Nächstgelegener größerer Ort: <span id="nearestPlaceName">wird ermittelt...</span></h3>
 <div id="locationInfo" class="subtitle">Ermittle deinen Standort...</div>
 <div id="forecastInfo" class="subtitle">Lade Prognosedaten...</div>
 <div class="note">
@@ -112,6 +113,54 @@ code {
     Wichtig: <strong>Best Match</strong> wird hier bewusst <strong>ohne</strong> <code>models=...</code>-Parameter abgefragt. Dadurch nutzt Open-Meteo die automatische Standardauswahl für den Standort.
 </div>
 <div id="modelCards" class="modelGrid"></div>
+<h3>Grobe Lage in Europa</h3>
+<div class="note">
+    Stark vereinfachte Übersichtskarte (grober Küstenumriss, keine exakten Grenzen) zur groben Orientierung, wo sich der abgefragte Standort befindet. Graue Punkte sind Referenzstädte, der rote Punkt markiert deinen aktuellen bzw. verwendeten Standort.
+</div>
+<div class="chartBox" style="height:560px; display:flex; align-items:center; justify-content:center; padding:8px;">
+    <svg id="europeMap" viewBox="0 0 800 800" style="width:100%; height:100%; max-width:640px;" xmlns="http://www.w3.org/2000/svg">
+        <rect x="0" y="0" width="800" height="800" fill="#dbeafe" rx="10"></rect>
+        <path d="M49.2,718.7 L107.7,738.9 L151.5,722.7 L253.8,591.0 L312.3,568.9 L408.6,698.1 L443.7,645.6 L464.3,631.7 L502.3,731.0 L531.5,698.1 L604.6,637.9 L677.7,550.8 L750.8,495.7 L765.4,354.0 L765.4,90.9 L546.2,30.1 L326.9,184.0 L264.1,275.2 L305.0,299.5 L325.4,384.8 L246.5,409.1 L210.0,435.5 L115.0,488.2 L158.8,556.5 L58.0,588.9 Z"
+              fill="#f3f4f6" stroke="#9ca3af" stroke-width="2" stroke-linejoin="round"></path>
+        <path d="M34.6,394.9 L93.1,354.0 L93.1,425.3 L34.6,425.3 Z"
+              fill="#f3f4f6" stroke="#9ca3af" stroke-width="2" stroke-linejoin="round"></path>
+        <path d="M107.7,455.5 L136.9,281.4 L205.7,405.1 Z"
+              fill="#f3f4f6" stroke="#9ca3af" stroke-width="2" stroke-linejoin="round"></path>
+
+        <g id="refCities" font-family="Arial, sans-serif">
+            <circle cx="47.2" cy="684.0" r="4" fill="#9ca3af"></circle>
+            <text x="53" y="681" font-size="12" fill="#6b7280">Lissabon</text>
+            <circle cx="126.7" cy="649.6" r="4" fill="#9ca3af"></circle>
+            <text x="133" y="647" font-size="12" fill="#6b7280">Madrid</text>
+            <circle cx="215.1" cy="478.7" r="4" fill="#9ca3af"></circle>
+            <text x="221" y="476" font-size="12" fill="#6b7280">Paris</text>
+            <circle cx="178.8" cy="424.9" r="4" fill="#9ca3af"></circle>
+            <text x="185" y="422" font-size="12" fill="#6b7280">London</text>
+            <circle cx="376.6" cy="404.4" r="4" fill="#9ca3af"></circle>
+            <text x="383" y="402" font-size="12" fill="#6b7280">Berlin</text>
+            <circle cx="363.5" cy="619.4" r="4" fill="#9ca3af"></circle>
+            <text x="370" y="617" font-size="12" fill="#6b7280">Rom</text>
+            <circle cx="420.1" cy="491.7" r="4" fill="#9ca3af"></circle>
+            <text x="426" y="489" font-size="12" fill="#6b7280">Wien</text>
+            <circle cx="487.6" cy="410.3" r="4" fill="#9ca3af"></circle>
+            <text x="494" y="408" font-size="12" fill="#6b7280">Warschau</text>
+            <circle cx="527.5" cy="698.9" r="4" fill="#9ca3af"></circle>
+            <text x="534" y="696" font-size="12" fill="#6b7280">Athen</text>
+            <circle cx="337.8" cy="254.7" r="4" fill="#9ca3af"></circle>
+            <text x="344" y="252" font-size="12" fill="#6b7280">Oslo</text>
+            <circle cx="730.2" cy="339.0" r="4" fill="#9ca3af"></circle>
+            <text x="700" y="325" font-size="12" fill="#6b7280">Moskau</text>
+        </g>
+
+        <circle id="userMarkerPulse" cx="-100" cy="-100" r="14" fill="#dc2626" opacity="0.35">
+            <animate attributeName="r" values="10;20;10" dur="2s" repeatCount="indefinite"></animate>
+            <animate attributeName="opacity" values="0.45;0.05;0.45" dur="2s" repeatCount="indefinite"></animate>
+        </circle>
+        <circle id="userMarker" cx="-100" cy="-100" r="8" fill="#dc2626" stroke="#7f1d1d" stroke-width="2"></circle>
+        <text id="userMarkerLabel" x="-100" y="-100" font-size="14" font-weight="bold" fill="#7f1d1d" font-family="Arial, sans-serif">Standort</text>
+    </svg>
+</div>
+<div class="note" id="mapNote"></div>
 <h3>Böen - Modellvergleich</h3>
 <div class="chartBox">
     <canvas id="windChart"></canvas>
@@ -164,17 +213,50 @@ function getBrowserLocation() {
     });
 }
 
-async function reverseGeocode(lat, lon) {
+const EUROPE_MAP_BOUNDS = { lonMin: -11, lonMax: 41, latMin: 34, latMax: 71.5 };
+function projectToEuropeMap(lat, lon) {
+    const b = EUROPE_MAP_BOUNDS;
+    const clampedLon = Math.max(b.lonMin, Math.min(b.lonMax, lon));
+    const clampedLat = Math.max(b.latMin, Math.min(b.latMax, lat));
+    const x = 20 + (clampedLon - b.lonMin) / (b.lonMax - b.lonMin) * 760;
+    const y = 20 + (b.latMax - clampedLat) / (b.latMax - b.latMin) * 760;
+    const outOfBounds = lon < b.lonMin || lon > b.lonMax || lat < b.latMin || lat > b.latMax;
+    return { x, y, outOfBounds };
+}
+function updateEuropeMapMarker(lat, lon, label) {
+    const proj = projectToEuropeMap(lat, lon);
+    const marker = document.getElementById("userMarker");
+    const pulse = document.getElementById("userMarkerPulse");
+    const markerLabel = document.getElementById("userMarkerLabel");
+    if (marker) { marker.setAttribute("cx", proj.x); marker.setAttribute("cy", proj.y); }
+    if (pulse) { pulse.setAttribute("cx", proj.x); pulse.setAttribute("cy", proj.y); }
+    if (markerLabel) {
+        const labelX = proj.x > 700 ? proj.x - 10 : proj.x + 12;
+        const anchor = proj.x > 700 ? "end" : "start";
+        markerLabel.setAttribute("x", labelX);
+        markerLabel.setAttribute("y", proj.y - 12);
+        markerLabel.setAttribute("text-anchor", anchor);
+        markerLabel.textContent = label;
+    }
+    const mapNoteEl = document.getElementById("mapNote");
+    if (mapNoteEl) {
+        mapNoteEl.textContent = proj.outOfBounds
+            ? "Hinweis: Dein Standort liegt außerhalb dieses Kartenausschnitts und wird daher näherungsweise am Kartenrand angezeigt."
+            : "";
+    }
+}
+
+async function reverseGeocodeNearestPlace(lat, lon) {
     try {
-        const url = `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&language=de&format=json`;
-        const response = await fetch(url);
+        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`;
+        const response = await fetch(url, { headers: { "Accept-Language": "de" } });
         if (!response.ok) return null;
         const data = await response.json();
-        const result = data?.results?.[0];
-        if (!result) return null;
-        return [result.name, result.admin1, result.country]
-            .filter(Boolean)
-            .join(", ");
+        const addr = data.address || {};
+        const nearestLarger = addr.city || addr.town || addr.municipality || addr.county || addr.state || null;
+        const country = addr.country || null;
+        const displayLabel = [nearestLarger, addr.state, country].filter(Boolean).join(", ");
+        return { nearestLarger, country, displayLabel };
     } catch {
         return null;
     }
@@ -459,21 +541,32 @@ function createCharts(results) {
 }
 async function loadWeather() {
     const locationInfoEl = document.getElementById("locationInfo");
+    const nearestPlaceNameEl = document.getElementById("nearestPlaceName");
     const locResult = await getBrowserLocation();
+    let nearestPlace = null;
     if (locResult.ok) {
         latitude = locResult.lat;
         longitude = locResult.lon;
         usedFallback = false;
         locationInfoEl.textContent = "Ermittle Ortsnamen für deinen Standort...";
-        const name = await reverseGeocode(latitude, longitude);
-        locationLabel = name || `Aktueller Standort (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+        nearestPlace = await reverseGeocodeNearestPlace(latitude, longitude);
+        locationLabel = nearestPlace?.displayLabel || `Aktueller Standort (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+        if (nearestPlace?.nearestLarger) {
+            nearestPlaceNameEl.textContent = nearestPlace.country
+                ? `${nearestPlace.nearestLarger}, ${nearestPlace.country}`
+                : nearestPlace.nearestLarger;
+        } else {
+            nearestPlaceNameEl.textContent = "konnte nicht ermittelt werden";
+        }
     } else {
         latitude = FALLBACK_LATITUDE;
         longitude = FALLBACK_LONGITUDE;
         locationLabel = FALLBACK_LABEL;
         usedFallback = true;
         locationInfoEl.innerHTML = `<span class="error">Standort nicht verfügbar (${escapeHtml(locResult.reason)}).</span> Es wird der Standardstandort Maslinica verwendet.`;
+        nearestPlaceNameEl.textContent = "Split, Kroatien (Standardstandort)";
     }
+    updateEuropeMapMarker(latitude, longitude, nearestPlace?.nearestLarger || (usedFallback ? "Maslinica" : "Standort"));
 
     const results = await Promise.all(models.map(async model => {
         try {
