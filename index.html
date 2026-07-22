@@ -105,7 +105,7 @@ code {
 <h2>Böenprognose - aktueller Standort</h2>
 <h3>Böen - Modellvergleich</h3>
 <div class="note" style="margin-top:-6px;">
-    Farbpriorität bei gleichen Werten (höhere Priorität liegt sichtbar oben): <strong>Prio 1 Best Match</strong> · <strong>Prio 2 ICON-D2</strong> · <strong>Prio 3 ICON-EU</strong> · <strong>Prio 4 GeoSphere Seamless (with ECMWF)</strong> · <strong>Prio 5 ECMWF IFS</strong>.
+    Farbpriorität bei gleichen Werten (höhere Priorität liegt sichtbar oben): <strong>Prio 1 Best Match</strong> · <strong>Prio 2 ICON-D2</strong> · <strong>Prio 3 ICON-EU</strong> · <strong>Prio 4 ECMWF IFS</strong>.
 </div>
 <div class="chartBox">
     <canvas id="windChart"></canvas>
@@ -115,9 +115,9 @@ code {
 <div id="locationInfo" class="subtitle">Ermittle deinen Standort...</div>
 <div id="forecastInfo" class="subtitle">Lade Prognosedaten...</div>
 <div class="note">
-    Datenquelle: Open-Meteo Forecast API. Vorhersagezeitraum: <strong>24 Stunden</strong>. Vergleich der Modelle <strong>ICON-EU</strong>, <strong>Best Match</strong>, <strong>ICON-D2</strong>, <strong>GeoSphere Seamless (with ECMWF)</strong> und <strong>ECMWF IFS</strong>. Im Modellvergleich werden ausschließlich <strong>Böen</strong> für die nächsten <strong>24 Stunden</strong> angezeigt. Einheit: Knoten.<br>Die Böenlinien verwenden bewusst stark unterschiedliche Farben für bessere Lesbarkeit im Modellvergleich.<br>
+    Datenquelle: Open-Meteo Forecast API. Vorhersagezeitraum: <strong>24 Stunden</strong>. Vergleich der Modelle <strong>ICON-EU</strong>, <strong>Best Match</strong>, <strong>ICON-D2</strong> und <strong>ECMWF IFS</strong>. Im Modellvergleich werden ausschließlich <strong>Böen</strong> für die nächsten <strong>24 Stunden</strong> angezeigt. Einheit: Knoten.<br>Die Böenlinien verwenden bewusst stark unterschiedliche Farben für bessere Lesbarkeit im Modellvergleich.<br>
     Die Windrose zeigt weiterhin die Windrichtung. Diese Diagnose-Version zeigt bei Fehlern die vollständige HTTP-Antwort der Open-Meteo-API inklusive API-URL.<br>
-    Hinweis: <strong>GeoSphere Seamless (with ECMWF)</strong> wird mit <code>models=geosphere_seamless</code> abgefragt, <strong>ECMWF IFS</strong> mit <code>models=ecmwf_ifs025</code>. Kann ein Modell für den aktuellen Standort keine Werte liefern, wird es auf der gesamten Seite ausgeblendet; ein entsprechender Hinweis erscheint oberhalb.<br>
+    Hinweis: <strong>ECMWF IFS</strong> wird mit <code>models=ecmwf_ifs025</code> abgefragt. Kann ein Modell für den aktuellen Standort keine Werte liefern, wird es auf der gesamten Seite ausgeblendet; ein entsprechender Hinweis erscheint oberhalb.<br>
     Wichtig: <strong>Best Match</strong> wird hier bewusst <strong>ohne</strong> <code>models=...</code>-Parameter abgefragt. Dadurch nutzt Open-Meteo die automatische Standardauswahl für den Standort.
 </div>
 <div id="modelCards" class="modelGrid"></div>
@@ -134,7 +134,7 @@ code {
         <li>Die Himmelsrichtungen zeigen, <strong>aus welcher Richtung</strong> der Wind kommt.</li>
         <li>Die Zahlen auf den konzentrischen Kreisen zeigen die <strong>Anzahl der Prognosestunden innerhalb der nächsten 24 Stunden</strong>.</li>
         <li>Beispiel: <strong>12 h bei NW</strong> bedeutet: In 12 der nächsten 24 Prognosestunden kommt der Wind aus Nordwest.</li>
-        <li>Die farbigen Flächen/Linien entsprechen den Modellen: ICON-EU, Best Match, ICON-D2, GeoSphere Seamless (with ECMWF) und ECMWF IFS.</li>
+        <li>Die farbigen Flächen/Linien entsprechen den Modellen: ICON-EU, Best Match, ICON-D2 und ECMWF IFS.</li>
     </ul>
 </div>
 <h3>Grobe Lage in Europa</h3>
@@ -311,15 +311,6 @@ const models = [
         nextForecastHint: "ca. alle 3 Stunden, sofern für den Standort verfügbar"
     },
     {
-        name: "GeoSphere Seamless (with ECMWF)",
-        id: "geosphere_seamless",
-        apiLabel: "models=geosphere_seamless",
-        colorWind: "#b45309",
-        colorGust: "#d100d1",
-        colorDirection: "#4f46e5",
-        nextForecastHint: "GeoSphere AROME für den Nahbereich; danach nahtlos mit ECMWF, sofern für den Standort verfügbar"
-    },
-    {
         name: "ECMWF IFS",
         id: "ecmwf_ifs025",
         apiLabel: "models=ecmwf_ifs025",
@@ -349,7 +340,7 @@ function buildApiUrl(modelId) {
         `&timezone=auto` +
         `&forecast_hours=24`;
     // Best Match = kein models-Parameter.
-    // Nur explizite Modelle wie ICON-EU, ICON-D2 und GeoSphere Seamless bekommen &models=...
+    // Nur explizite Modelle wie ICON-EU und ICON-D2 bekommen &models=...
     if (modelId) {
         url += `&models=${modelId}`;
     }
@@ -504,13 +495,12 @@ function createCharts(results) {
     const directionDatasets = [];
     // Priorität für die Böen-Linien: bei identischen Werten soll die Farbe des Modells
     // mit der höheren Priorität sichtbar sein (= zuletzt gezeichnet = oben).
-    // Prio 1 Best Match, 2 ICON-D2, 3 ICON-EU, 4 GeoSphere -> Zeichenreihenfolge umgekehrt (4,3,2,1).
+    // Prio 1 Best Match, 2 ICON-D2, 3 ICON-EU, 4 ECMWF IFS.
     const WIND_DRAW_PRIORITY = {
         "Best Match": 1,
         "ICON-D2": 2,
         "ICON-EU": 3,
-        "GeoSphere Seamless (with ECMWF)": 4,
-        "ECMWF IFS": 5
+        "ECMWF IFS": 4
     };
     const windDrawOrder = results
         .filter(r => !r.error)
@@ -649,7 +639,7 @@ async function loadWeather() {
     document.getElementById("forecastInfo").innerHTML =
         `<strong>Ort:</strong> ${escapeHtml(locationLabel)}, ${latitude.toFixed(4)}, ${longitude.toFixed(4)}` +
         `&nbsp;&nbsp;|&nbsp;&nbsp;` +
-        `<strong>Modelle:</strong> ICON-EU, Best Match, ICON-D2, GeoSphere Seamless (with ECMWF), ECMWF IFS` +
+        `<strong>Modelle:</strong> ICON-EU, Best Match, ICON-D2, ECMWF IFS` +
         `&nbsp;&nbsp;|&nbsp;&nbsp;` +
         `<strong>Anzeige geladen:</strong> ${formatDateTime(loadedAt)}`;
     renderModelCards(results);
