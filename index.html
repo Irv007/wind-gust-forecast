@@ -187,10 +187,10 @@ code {
     </svg>
 </div>
 <div class="note" id="mapNote"></div>
-<div id="islandMapSection" style="display:none;">
-    <h3>Inselkarte: <span id="islandNameLabel"></span></h3>
+<div id="islandMapSection">
+    <h3>Präziser Kartenausschnitt: <span id="islandNameLabel"></span></h3>
     <div class="note">
-        Der Standort liegt auf einer Insel. Damit die Insel als solche erkennbar ist, wird hier eine präzise, echte Kartenausschnitt-Karte (OpenStreetMap) angezeigt statt der stark vereinfachten Europa-Übersicht oben.
+        Echte OpenStreetMap-Detailkarte um den Standort (zugeschnitten auf den von Nominatim gelieferten Ortsbereich). Falls der Standort auf einer Insel liegt, ist diese hier - im Gegensatz zur stark vereinfachten Europa-Übersicht oben - tatsächlich als Insel mit realer Küstenlinie erkennbar.
     </div>
     <div class="chartBox" style="padding:0; overflow:hidden;">
         <div id="islandMapContainer" style="height:440px; width:100%; border-radius:12px;"></div>
@@ -332,10 +332,17 @@ async function reverseGeocodeNearestPlace(lat, lon) {
         const distanceKm = Number.isFinite(placeLat) && Number.isFinite(placeLon)
             ? haversineDistanceKm(lat, lon, placeLat, placeLon)
             : null;
+        let localBounds = null;
+        if (Array.isArray(data.boundingbox) && data.boundingbox.length === 4) {
+            const [south, north, west, east] = data.boundingbox.map(Number);
+            if ([south, north, west, east].every(Number.isFinite)) {
+                localBounds = { south, north, west, east };
+            }
+        }
         return {
             nearestLarger, country, displayLabel, placeLat, placeLon, distanceKm,
             countryCode: addr.country_code || null,
-            islandNameRaw, islandName
+            islandNameRaw, islandName, localBounds
         };
     } catch {
         return null;
@@ -425,8 +432,13 @@ let islandLeafletMap = null;
 function showIslandMap(lat, lon, islandDisplayName, bounds) {
     const section = document.getElementById("islandMapSection");
     const nameLabel = document.getElementById("islandNameLabel");
-    if (!section || typeof L === "undefined") return;
-    section.style.display = "";
+    if (!section) return;
+    if (typeof L === "undefined") {
+        console.error("Leaflet (L) ist nicht geladen - Kartenausschnitt kann nicht angezeigt werden.");
+        document.getElementById("islandMapContainer").innerHTML =
+            '<div class="note error" style="padding:12px;">Leaflet-Kartenbibliothek konnte nicht geladen werden (evtl. CDN blockiert).</div>';
+        return;
+    }
     nameLabel.textContent = islandDisplayName || "";
     if (!islandLeafletMap) {
         islandLeafletMap = L.map("islandMapContainer");
@@ -807,20 +819,11 @@ async function loadWeather() {
     }
     updateEuropeMapMarker(latitude, longitude, nearestPlace?.nearestLarger || (usedFallback ? "Maslinica" : "Standort"));
 
-    let islandMatch = null;
-    if (nearestPlace?.islandNameRaw) {
-        // Nominatim hat direkt ein island-Feld geliefert (seltener Fall) - Bounding Box separat nachladen.
-        const bounds = await fetchIslandBounds(nearestPlace.islandNameRaw, nearestPlace.countryCode);
-        islandMatch = { nameRaw: nearestPlace.islandNameRaw, nameLatin: nearestPlace.islandName, bounds };
+    if (nearestPlace) {
+        const displayName = nearestPlace.nearestLarger || locationLabel;
+        showIslandMap(latitude, longitude, displayName, nearestPlace.localBounds);
     } else {
-        islandMatch = await findNearbyIsland(latitude, longitude);
-    }
-    if (islandMatch) {
-        let displayName = islandMatch.nameLatin || islandMatch.nameRaw;
-        if (GREEK_CHAR_REGEX.test(displayName)) displayName = transliterateGreek(displayName);
-        showIslandMap(latitude, longitude, displayName, islandMatch.bounds);
-    } else {
-        hideIslandMap();
+        showIslandMap(latitude, longitude, locationLabel, null);
     }
 
     const results = await Promise.all(models.map(async model => {
