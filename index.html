@@ -17,14 +17,13 @@ body {
 }
 h2 { margin-bottom: 5px; }
 #topRightControls {
-    position: fixed;
-    top: 16px;
-    right: 16px;
-    z-index: 1000;
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 8px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    margin: 4px 0 16px 0;
 }
 .placeSearchBox {
     display: flex;
@@ -59,8 +58,9 @@ h2 { margin-bottom: 5px; }
 #placeSearchStatus {
     font-size: 0.78em;
     color: #6b7280;
-    max-width: 260px;
-    text-align: right;
+    max-width: 100%;
+    flex-basis: 100%;
+    text-align: left;
 }
 #pdfDownloadBtn {
     background: #2563eb;
@@ -105,7 +105,6 @@ h2 { margin-bottom: 5px; }
 @media (max-width: 640px) {
     body { margin: 10px; }
     #topRightControls {
-        position: static;
         width: 100%;
         max-width: 100%;
         align-items: stretch;
@@ -235,6 +234,14 @@ code {
 </style>
 </head>
 <body>
+<h2>Böenprognose - aktueller Standort</h2>
+<h3>Böen - Modellvergleich</h3>
+<div class="note" style="margin-top:-6px;">
+    Farbpriorität bei gleichen Werten (höhere Priorität liegt sichtbar oben): <strong>Prio 1 Best Match</strong> · <strong>Prio 2 ICON-D2</strong> · <strong>Prio 3 ICON-EU</strong> · <strong>Prio 4 ECMWF IFS</strong>.
+</div>
+<div class="chartBox">
+    <canvas id="windChart"></canvas>
+</div>
 <div id="topRightControls">
     <div class="placeSearchBox">
         <input type="text" id="placeSearchInput" placeholder="Ort eingeben..."
@@ -244,7 +251,6 @@ code {
     <div id="placeSearchStatus"></div>
     <button id="pdfDownloadBtn" onclick="downloadPageAsPdf()">📄 Als PDF speichern</button>
 </div>
-<h2>Böenprognose - aktueller Standort</h2>
 <div class="forecastRangeBox">
     <label for="forecastDaysSlider"><strong>Wie lange in die Zukunft?</strong> <span id="forecastDaysValue">1 Tag</span></label>
     <input type="range" id="forecastDaysSlider" min="1" max="5" step="1" value="1"
@@ -259,13 +265,6 @@ code {
     <div class="forecastRangeLabels">
         <span>1 Tag</span><span>2 Tage</span><span>3 Tage</span><span>4 Tage</span><span>5 Tage</span>
     </div>
-</div>
-<h3>Böen - Modellvergleich</h3>
-<div class="note" style="margin-top:-6px;">
-    Farbpriorität bei gleichen Werten (höhere Priorität liegt sichtbar oben): <strong>Prio 1 Best Match</strong> · <strong>Prio 2 ICON-D2</strong> · <strong>Prio 3 ICON-EU</strong> · <strong>Prio 4 ECMWF IFS</strong>.
-</div>
-<div class="chartBox">
-    <canvas id="windChart"></canvas>
 </div>
 <div class="note" id="unavailableModelsNote"></div>
 <h3 id="nearestPlaceHeading" style="margin-top:0; color:#374151;">Nächstgelegener größerer Ort: <span id="nearestPlaceName">wird ermittelt...</span></h3>
