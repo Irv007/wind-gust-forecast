@@ -9,6 +9,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
+html { scroll-behavior: smooth; }
 body {
     font-family: Arial, sans-serif;
     margin: 20px;
@@ -16,6 +17,60 @@ body {
     color: #1f2937;
 }
 h2 { margin-bottom: 5px; }
+#anchorNav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin: 6px 0 16px 0;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+#anchorNav a {
+    color: #1f2937;
+    text-decoration: none;
+    font-size: 0.88em;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: #f3f4f6;
+    white-space: nowrap;
+}
+#anchorNav a:hover { background: #e5e7eb; }
+h3[id], #section-modelle {
+    scroll-margin-top: 64px;
+}
+#backToTopBtn {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: #2563eb;
+    color: #fff;
+    font-size: 1.3em;
+    line-height: 44px;
+    text-align: center;
+    padding: 0;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    z-index: 30;
+}
+#backToTopBtn.visible {
+    opacity: 1;
+    visibility: visible;
+}
+#backToTopBtn:hover { background: #1d4ed8; }
 #topRightControls {
     display: flex;
     flex-direction: row;
@@ -104,6 +159,12 @@ h2 { margin-bottom: 5px; }
 .forecastRangeLabels span:not(:first-child):not(:last-child) { text-align: center; }
 @media (max-width: 640px) {
     body { margin: 10px; }
+    #anchorNav {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    #backToTopBtn { right: 14px; bottom: 14px; width: 40px; height: 40px; line-height: 40px; font-size: 1.15em; }
     #topRightControls {
         width: 100%;
         max-width: 100%;
@@ -262,7 +323,13 @@ code {
 </head>
 <body>
 <h2>Böenprognose - aktueller Standort</h2>
-<h3>Böen - Modellvergleich</h3>
+<nav id="anchorNav" aria-label="Abschnitte auf dieser Seite">
+    <a href="#section-boeen">Böen-Diagramm</a>
+    <a href="#section-modelle">Modelldetails</a>
+    <a href="#section-windrose">Windrose</a>
+    <a href="#section-karte">Kartenausschnitt</a>
+</nav>
+<h3 id="section-boeen">Böen - Modellvergleich</h3>
 <div class="note" style="margin-top:-6px;">
     Farbpriorität bei gleichen Werten (höhere Priorität liegt sichtbar oben): <strong>Prio 1 Best Match</strong> · <strong>Prio 2 ICON-D2</strong> · <strong>Prio 3 ICON-EU</strong> · <strong>Prio 4 ECMWF IFS</strong>.
 </div>
@@ -324,8 +391,9 @@ code {
     Hinweis: <strong>ECMWF IFS</strong> wird mit <code>models=ecmwf_ifs025</code> abgefragt. Kann ein Modell für den aktuellen Standort keine Werte liefern, wird es auf der gesamten Seite ausgeblendet; ein entsprechender Hinweis erscheint oberhalb.<br>
     Wichtig: <strong>Best Match</strong> wird hier bewusst <strong>ohne</strong> <code>models=...</code>-Parameter abgefragt. Dadurch nutzt Open-Meteo die automatische Standardauswahl für den Standort.
 </div>
+<div id="section-modelle" style="scroll-margin-top:70px;"></div>
 <div id="modelCards" class="modelGrid"></div>
-<h3>Windrichtungsrose - Modellvergleich</h3>
+<h3 id="section-windrose">Windrichtungsrose - Modellvergleich</h3>
 <div class="note">
     Die Windrichtungsrose zeigt, aus welcher Richtung der Wind im Prognosezeitraum kommt. Die Werte werden je Modell auf acht Himmelsrichtungen gruppiert.
 </div>
@@ -352,56 +420,8 @@ code {
         <li>Ohne jeden Parameter: aktueller Browser-Standort (mit Fallback auf Maslinica) und 1 Tag (24 Stunden) ab jetzt.</li>
     </ul>
 </div>
-<h3>Grobe Lage in Europa</h3>
-<div class="note">
-    Stark vereinfachte Übersichtskarte (grober Küstenumriss, keine exakten Grenzen) zur groben Orientierung, wo sich der abgefragte Standort befindet. Graue Punkte sind Referenzstädte, der rote Punkt markiert deinen aktuellen bzw. verwendeten Standort.
-</div>
-<div class="chartBox" style="height:560px; display:flex; align-items:center; justify-content:center; padding:8px;">
-    <svg id="europeMap" viewBox="0 0 800 800" style="width:100%; height:100%; max-width:640px;" xmlns="http://www.w3.org/2000/svg">
-        <rect x="0" y="0" width="800" height="800" fill="#dbeafe" rx="10"></rect>
-        <path d="M49.2,718.7 L107.7,738.9 L151.5,722.7 L253.8,591.0 L312.3,568.9 L408.6,698.1 L443.7,645.6 L464.3,631.7 L502.3,731.0 L531.5,698.1 L604.6,637.9 L677.7,550.8 L750.8,495.7 L765.4,354.0 L765.4,90.9 L546.2,30.1 L326.9,184.0 L264.1,275.2 L305.0,299.5 L325.4,384.8 L246.5,409.1 L210.0,435.5 L115.0,488.2 L158.8,556.5 L58.0,588.9 Z"
-              fill="#f3f4f6" stroke="#9ca3af" stroke-width="2" stroke-linejoin="round"></path>
-        <path d="M34.6,394.9 L93.1,354.0 L93.1,425.3 L34.6,425.3 Z"
-              fill="#f3f4f6" stroke="#9ca3af" stroke-width="2" stroke-linejoin="round"></path>
-        <path d="M107.7,455.5 L136.9,281.4 L205.7,405.1 Z"
-              fill="#f3f4f6" stroke="#9ca3af" stroke-width="2" stroke-linejoin="round"></path>
-
-        <g id="refCities" font-family="Arial, sans-serif">
-            <circle cx="47.2" cy="684.0" r="4" fill="#9ca3af"></circle>
-            <text x="53" y="681" font-size="12" fill="#6b7280">Lissabon</text>
-            <circle cx="126.7" cy="649.6" r="4" fill="#9ca3af"></circle>
-            <text x="133" y="647" font-size="12" fill="#6b7280">Madrid</text>
-            <circle cx="215.1" cy="478.7" r="4" fill="#9ca3af"></circle>
-            <text x="221" y="476" font-size="12" fill="#6b7280">Paris</text>
-            <circle cx="178.8" cy="424.9" r="4" fill="#9ca3af"></circle>
-            <text x="185" y="422" font-size="12" fill="#6b7280">London</text>
-            <circle cx="376.6" cy="404.4" r="4" fill="#9ca3af"></circle>
-            <text x="383" y="402" font-size="12" fill="#6b7280">Berlin</text>
-            <circle cx="363.5" cy="619.4" r="4" fill="#9ca3af"></circle>
-            <text x="370" y="617" font-size="12" fill="#6b7280">Rom</text>
-            <circle cx="420.1" cy="491.7" r="4" fill="#9ca3af"></circle>
-            <text x="426" y="489" font-size="12" fill="#6b7280">Wien</text>
-            <circle cx="487.6" cy="410.3" r="4" fill="#9ca3af"></circle>
-            <text x="494" y="408" font-size="12" fill="#6b7280">Warschau</text>
-            <circle cx="527.5" cy="698.9" r="4" fill="#9ca3af"></circle>
-            <text x="534" y="696" font-size="12" fill="#6b7280">Athen</text>
-            <circle cx="337.8" cy="254.7" r="4" fill="#9ca3af"></circle>
-            <text x="344" y="252" font-size="12" fill="#6b7280">Oslo</text>
-            <circle cx="730.2" cy="339.0" r="4" fill="#9ca3af"></circle>
-            <text x="700" y="325" font-size="12" fill="#6b7280">Moskau</text>
-        </g>
-
-        <circle id="userMarkerPulse" cx="-100" cy="-100" r="14" fill="#dc2626" opacity="0.35">
-            <animate attributeName="r" values="10;20;10" dur="2s" repeatCount="indefinite"></animate>
-            <animate attributeName="opacity" values="0.45;0.05;0.45" dur="2s" repeatCount="indefinite"></animate>
-        </circle>
-        <circle id="userMarker" cx="-100" cy="-100" r="8" fill="#dc2626" stroke="#7f1d1d" stroke-width="2"></circle>
-        <text id="userMarkerLabel" x="-100" y="-100" font-size="14" font-weight="bold" fill="#7f1d1d" font-family="Arial, sans-serif">Standort</text>
-    </svg>
-</div>
-<div class="note" id="mapNote"></div>
 <div id="islandMapSection">
-    <h3>Präziser Kartenausschnitt: <span id="islandNameLabel"></span></h3>
+    <h3 id="section-karte">Präziser Kartenausschnitt: <span id="islandNameLabel"></span></h3>
     <div class="note">
         Echte OpenStreetMap-Detailkarte um den Standort (zugeschnitten auf den von Nominatim gelieferten Ortsbereich). Falls der Standort auf einer Insel liegt, ist diese hier - im Gegensatz zur stark vereinfachten Europa-Übersicht oben - tatsächlich als Insel mit realer Küstenlinie erkennbar.
     </div>
@@ -409,6 +429,18 @@ code {
         <div id="islandMapContainer" style="height:440px; width:100%; border-radius:12px;"></div>
     </div>
 </div>
+<button id="backToTopBtn" onclick="window.scrollTo({top:0, behavior:'smooth'})" aria-label="Nach oben scrollen" title="Nach oben">↑</button>
+<script>
+window.addEventListener("scroll", () => {
+    const btn = document.getElementById("backToTopBtn");
+    if (!btn) return;
+    if (window.scrollY > 400) {
+        btn.classList.add("visible");
+    } else {
+        btn.classList.remove("visible");
+    }
+});
+</script>
 <script>
 function downloadPageAsPdf() {
     const btn = document.getElementById("pdfDownloadBtn");
@@ -575,39 +607,6 @@ function getBrowserLocation() {
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
         );
     });
-}
-
-const EUROPE_MAP_BOUNDS = { lonMin: -11, lonMax: 41, latMin: 34, latMax: 71.5 };
-function projectToEuropeMap(lat, lon) {
-    const b = EUROPE_MAP_BOUNDS;
-    const clampedLon = Math.max(b.lonMin, Math.min(b.lonMax, lon));
-    const clampedLat = Math.max(b.latMin, Math.min(b.latMax, lat));
-    const x = 20 + (clampedLon - b.lonMin) / (b.lonMax - b.lonMin) * 760;
-    const y = 20 + (b.latMax - clampedLat) / (b.latMax - b.latMin) * 760;
-    const outOfBounds = lon < b.lonMin || lon > b.lonMax || lat < b.latMin || lat > b.latMax;
-    return { x, y, outOfBounds };
-}
-function updateEuropeMapMarker(lat, lon, label) {
-    const proj = projectToEuropeMap(lat, lon);
-    const marker = document.getElementById("userMarker");
-    const pulse = document.getElementById("userMarkerPulse");
-    const markerLabel = document.getElementById("userMarkerLabel");
-    if (marker) { marker.setAttribute("cx", proj.x); marker.setAttribute("cy", proj.y); }
-    if (pulse) { pulse.setAttribute("cx", proj.x); pulse.setAttribute("cy", proj.y); }
-    if (markerLabel) {
-        const labelX = proj.x > 700 ? proj.x - 10 : proj.x + 12;
-        const anchor = proj.x > 700 ? "end" : "start";
-        markerLabel.setAttribute("x", labelX);
-        markerLabel.setAttribute("y", proj.y - 12);
-        markerLabel.setAttribute("text-anchor", anchor);
-        markerLabel.textContent = label;
-    }
-    const mapNoteEl = document.getElementById("mapNote");
-    if (mapNoteEl) {
-        mapNoteEl.textContent = proj.outOfBounds
-            ? "Hinweis: Dein Standort liegt außerhalb dieses Kartenausschnitts und wird daher näherungsweise am Kartenrand angezeigt."
-            : "";
-    }
 }
 
 function haversineDistanceKm(lat1, lon1, lat2, lon2) {
@@ -895,6 +894,7 @@ const models = [
         colorWind: "#2563eb",
         colorGust: "#0052cc",
         colorDirection: "#16a34a",
+        dashGust: [],
         nextForecastHint: "ca. 00/06/12/18 Uhr, sobald der Modelllauf verarbeitet ist"
     },
     {
@@ -905,6 +905,7 @@ const models = [
         colorWind: "#7c3aed",
         colorGust: "#ff7a00",
         colorDirection: "#0891b2",
+        dashGust: [8, 4],
         nextForecastHint: "abhängig vom automatisch gewählten Modell"
     },
     {
@@ -915,6 +916,7 @@ const models = [
         colorWind: "#0f766e",
         colorGust: "#008a00",
         colorDirection: "#9333ea",
+        dashGust: [2, 3],
         nextForecastHint: "ca. alle 3 Stunden, sofern für den Standort verfügbar"
     },
     {
@@ -925,6 +927,7 @@ const models = [
         colorWind: "#334155",
         colorGust: "#dc2626",
         colorDirection: "#ca8a04",
+        dashGust: [12, 4, 2, 4],
         nextForecastHint: "alle 6 Stunden (00/06/12/18 UTC), 3-stündliche Auflösung"
     }
 ];
@@ -1167,6 +1170,7 @@ function createCharts(results) {
             borderColor: r.model.colorGust,
             backgroundColor: r.model.colorGust,
             borderWidth: 3,
+            borderDash: r.model.dashGust ?? [],
             tension: 0.3,
             spanGaps: true,
             // Chart.js: niedrigerer order-Wert wird SPÄTER gezeichnet (liegt oben).
@@ -1350,8 +1354,6 @@ async function loadWeather() {
     } else {
         nearestPlaceNameEl.textContent = "konnte nicht ermittelt werden";
     }
-    updateEuropeMapMarker(latitude, longitude, nearestPlace?.nearestLarger || (usedFallback ? "Maslinica" : "Standort"));
-
     if (nearestPlace) {
         const displayName = nearestPlace.nearestLarger || locationLabel;
         showIslandMap(latitude, longitude, displayName, nearestPlace.localBounds);
