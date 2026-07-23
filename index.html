@@ -194,6 +194,33 @@ h3 { margin-top: 34px; margin-bottom: 8px; }
     padding: 14px;
     box-sizing: border-box;
 }
+.chartLoadingOverlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.88);
+    border-radius: 12px;
+    z-index: 5;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.chartLoadingOverlay.visible { display: flex; }
+.chartLoadingOverlay .hourglass {
+    font-size: 2.4em;
+    animation: hourglassSpin 1.4s linear infinite;
+    display: inline-block;
+}
+.chartLoadingOverlay .loadingText {
+    font-size: 0.95em;
+    color: #374151;
+    font-weight: bold;
+}
+@keyframes hourglassSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
 .note {
     max-width: 1200px;
     font-size: 0.9em;
@@ -239,8 +266,12 @@ code {
 <div class="note" style="margin-top:-6px;">
     Farbpriorität bei gleichen Werten (höhere Priorität liegt sichtbar oben): <strong>Prio 1 Best Match</strong> · <strong>Prio 2 ICON-D2</strong> · <strong>Prio 3 ICON-EU</strong> · <strong>Prio 4 ECMWF IFS</strong>.
 </div>
-<div class="chartBox">
+<div class="chartBox" style="position:relative;">
     <canvas id="windChart"></canvas>
+    <div id="windChartLoadingOverlay" class="chartLoadingOverlay">
+        <span class="hourglass">⏳</span>
+        <span class="loadingText">Aktualisiere Prognose...</span>
+    </div>
 </div>
 <div id="topRightControls">
     <div class="placeSearchBox">
@@ -254,7 +285,9 @@ code {
 <div class="forecastRangeBox">
     <label for="forecastDaysSlider"><strong>Wie lange in die Zukunft?</strong> <span id="forecastDaysValue">1 Tag</span></label>
     <input type="range" id="forecastDaysSlider" min="1" max="5" step="1" value="1"
-           list="forecastDaysTicks" oninput="onForecastDaysChange(this.value)">
+           list="forecastDaysTicks"
+           oninput="updateForecastDaysLabel(this.value)"
+           onchange="onForecastDaysChange(this.value)">
     <datalist id="forecastDaysTicks">
         <option value="1"></option>
         <option value="2"></option>
@@ -451,14 +484,28 @@ async function searchPlaceAndUse() {
     }
 }
 
+function updateForecastDaysLabel(value) {
+    const days = Math.min(5, Math.max(1, Number.parseInt(value, 10) || 1));
+    document.getElementById("forecastDaysValue").textContent =
+        days === 1 ? "1 Tag" : `${days} Tage`;
+}
+
 function onForecastDaysChange(value) {
     forecastDays = Math.min(5, Math.max(1, Number.parseInt(value, 10) || 1));
-    document.getElementById("forecastDaysValue").textContent =
-        forecastDays === 1 ? "1 Tag" : `${forecastDays} Tage`;
-    loadWeather().catch(error => {
-        console.error(error);
-        document.getElementById("forecastInfo").innerHTML = "Fehler beim Laden: " + error.message;
-    });
+    updateForecastDaysLabel(value);
+    const overlayEl = document.getElementById("windChartLoadingOverlay");
+    const sliderEl = document.getElementById("forecastDaysSlider");
+    if (overlayEl) overlayEl.classList.add("visible");
+    if (sliderEl) sliderEl.disabled = true;
+    loadWeather()
+        .catch(error => {
+            console.error(error);
+            document.getElementById("forecastInfo").innerHTML = "Fehler beim Laden: " + error.message;
+        })
+        .finally(() => {
+            if (overlayEl) overlayEl.classList.remove("visible");
+            if (sliderEl) sliderEl.disabled = false;
+        });
 }
 
 function getBrowserLocation() {
