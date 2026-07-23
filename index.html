@@ -1211,7 +1211,26 @@ function createCharts(results) {
             maintainAspectRatio: false,
             interaction: { mode: "index", intersect: false },
             plugins: {
-                legend: { position: "top" },
+                legend: {
+                    position: "top",
+                    labels: {
+                        usePointStyle: true,
+                        pointStyle: "rectRounded",
+                        boxWidth: 14,
+                        boxHeight: 14,
+                        padding: 18,
+                        font: { size: 13 },
+                        generateLabels: chart => chart.data.datasets.map((ds, i) => ({
+                            text: ds.label,
+                            fillStyle: ds.borderColor,
+                            strokeStyle: ds.borderColor,
+                            lineWidth: 0,
+                            pointStyle: "rectRounded",
+                            hidden: !chart.isDatasetVisible(i),
+                            datasetIndex: i
+                        }))
+                    }
+                },
                 tooltip: {
                     callbacks: {
                         label: context => `${context.dataset.label}: ${context.raw ?? "-"} kn`
@@ -1241,7 +1260,26 @@ function createCharts(results) {
                 line: { tension: 0.15 }
             },
             plugins: {
-                legend: { position: "top" },
+                legend: {
+                    position: "top",
+                    labels: {
+                        usePointStyle: true,
+                        pointStyle: "rectRounded",
+                        boxWidth: 14,
+                        boxHeight: 14,
+                        padding: 18,
+                        font: { size: 13 },
+                        generateLabels: chart => chart.data.datasets.map((ds, i) => ({
+                            text: ds.label,
+                            fillStyle: ds.borderColor,
+                            strokeStyle: ds.borderColor,
+                            lineWidth: 0,
+                            pointStyle: "rectRounded",
+                            hidden: !chart.isDatasetVisible(i),
+                            datasetIndex: i
+                        }))
+                    }
+                },
                 tooltip: {
                     callbacks: {
                         label: context => `${context.dataset.label}: ${context.raw} Stunden`
