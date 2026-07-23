@@ -103,11 +103,48 @@ h2 { margin-bottom: 5px; }
 .forecastRangeLabels span:last-child { text-align: right; }
 .forecastRangeLabels span:not(:first-child):not(:last-child) { text-align: center; }
 @media (max-width: 640px) {
-    #topRightControls { top: 8px; right: 8px; gap: 6px; }
-    .placeSearchBox input[type="text"] { width: 110px; font-size: 0.8em; }
-    #placeSearchBtn { padding: 6px 8px; font-size: 0.78em; }
-    #placeSearchStatus { max-width: 160px; font-size: 0.7em; }
-    #pdfDownloadBtn { padding: 8px 12px; font-size: 0.8em; }
+    body { margin: 10px; }
+    #topRightControls {
+        position: static;
+        width: 100%;
+        max-width: 100%;
+        align-items: stretch;
+        gap: 8px;
+        margin-bottom: 14px;
+        box-sizing: border-box;
+    }
+    .placeSearchBox {
+        flex-direction: column;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .placeSearchBox input[type="text"] {
+        width: 100%;
+        box-sizing: border-box;
+        font-size: 16px; /* verhindert Auto-Zoom beim Fokussieren auf iOS */
+    }
+    #placeSearchBtn {
+        width: 100%;
+        padding: 10px 8px;
+        font-size: 0.9em;
+        box-sizing: border-box;
+    }
+    #placeSearchStatus {
+        max-width: 100%;
+        text-align: left;
+    }
+    #pdfDownloadBtn {
+        width: 100%;
+        padding: 10px 8px;
+        font-size: 0.9em;
+        box-sizing: border-box;
+    }
+    h2 { font-size: 1.3em; }
+    h3 { font-size: 1.05em; margin-top: 26px; }
+    .forecastRangeBox { max-width: 100%; padding: 10px 12px 8px 12px; box-sizing: border-box; }
+    .modelGrid { grid-template-columns: 1fr; }
+    .chartBox { padding: 6px; box-sizing: border-box; }
+    table { font-size: 0.85em; }
 }
 h3 { margin-top: 34px; margin-bottom: 8px; }
 .subtitle {
