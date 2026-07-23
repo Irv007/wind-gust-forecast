@@ -347,7 +347,8 @@ code {
         <li><code>?lat=</code> und <code>?lon=</code> - Test-Standort statt Browser-Geolocation, z. B. <code>?lat=44.6362&amp;lon=14.2440</code>. Beide Parameter müssen gemeinsam angegeben werden.</li>
         <li><code>?start=</code> - Test-Startzeitpunkt der Prognose statt "jetzt", Format <code>JJJJ-MM-TTTHH:mm</code>, z. B. <code>?start=2026-07-18T15:00</code>. Liegt der Zeitpunkt in der Vergangenheit, wird automatisch die Historical Forecast API von Open-Meteo verwendet (archivierte Modellläufe); in der Zukunft/ohne Angabe die normale Live-Forecast-API.</li>
         <li><code>?days=</code> - Wie viele Tage in die Zukunft (1 bis 5), entspricht dem Schalter "Wie lange in die Zukunft?" oben auf der Seite, z. B. <code>?days=3</code>. Ohne Angabe: 1 Tag.</li>
-        <li>Kombinierbar, z. B.: <code>?lat=44.6362&amp;lon=14.2440&amp;start=2026-07-18T15:00&amp;days=3</code></li>
+        <li><code>?resolution=</code> - Anzeige-Raster im Böen-Diagramm in Stunden: <code>1</code>, <code>3</code> oder <code>6</code>, entspricht dem Schalter "Auflösung" oben auf der Seite, z. B. <code>?resolution=3</code>. Zeigt nur jeden 1./3./6. Stundenwert im Diagramm an (reine Darstellungsoption, die zugrunde liegenden Daten bleiben stündlich). Ohne Angabe: 1 h (jeder Stundenwert).</li>
+        <li>Kombinierbar, z. B.: <code>?lat=44.6362&amp;lon=14.2440&amp;start=2026-07-18T15:00&amp;days=3&amp;resolution=3</code></li>
         <li>Ohne jeden Parameter: aktueller Browser-Standort (mit Fallback auf Maslinica) und 1 Tag (24 Stunden) ab jetzt.</li>
     </ul>
 </div>
@@ -1301,6 +1302,15 @@ async function loadWeather() {
         forecastDaysValueEl.textContent = forecastDays === 1 ? "1 Tag" : `${forecastDays} Tage`;
     }
     updateForecastPeriodTexts();
+
+    const resolutionParam = Number.parseInt(urlParams.get("resolution"), 10);
+    if (RESOLUTION_STEPS.includes(resolutionParam)) {
+        chartResolutionHours = resolutionParam;
+    }
+    const resolutionIndex = RESOLUTION_STEPS.indexOf(chartResolutionHours);
+    const chartResolutionSliderEl = document.getElementById("chartResolutionSlider");
+    if (chartResolutionSliderEl && resolutionIndex >= 0) chartResolutionSliderEl.value = String(resolutionIndex);
+    updateResolutionLabel(resolutionIndex >= 0 ? resolutionIndex : 0);
 
     if (hasOverride) {
         latitude = overrideLat;
