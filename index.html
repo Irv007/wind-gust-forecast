@@ -33,6 +33,33 @@ h2 { margin-bottom: 5px; }
 }
 #pdfDownloadBtn:hover { background: #1d4ed8; }
 #pdfDownloadBtn:disabled { background: #93c5fd; cursor: wait; }
+.forecastRangeBox {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px 18px 8px 18px;
+    margin: 10px 0 16px 0;
+    max-width: 520px;
+}
+.forecastRangeBox label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.95em;
+}
+.forecastRangeBox input[type="range"] {
+    width: 100%;
+    accent-color: #2563eb;
+}
+.forecastRangeLabels {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    font-size: 0.78em;
+    color: #6b7280;
+    margin-top: 2px;
+}
+.forecastRangeLabels span:first-child { text-align: left; }
+.forecastRangeLabels span:last-child { text-align: right; }
+.forecastRangeLabels span:not(:first-child):not(:last-child) { text-align: center; }
 @media (max-width: 640px) {
     #pdfDownloadBtn { top: 8px; right: 8px; padding: 8px 12px; font-size: 0.8em; }
 }
@@ -127,6 +154,21 @@ code {
 <body>
 <button id="pdfDownloadBtn" onclick="downloadPageAsPdf()">📄 Als PDF speichern</button>
 <h2>Böenprognose - aktueller Standort</h2>
+<div class="forecastRangeBox">
+    <label for="forecastDaysSlider"><strong>Wie lange in die Zukunft?</strong> <span id="forecastDaysValue">1 Tag</span></label>
+    <input type="range" id="forecastDaysSlider" min="1" max="5" step="1" value="1"
+           list="forecastDaysTicks" oninput="onForecastDaysChange(this.value)">
+    <datalist id="forecastDaysTicks">
+        <option value="1"></option>
+        <option value="2"></option>
+        <option value="3"></option>
+        <option value="4"></option>
+        <option value="5"></option>
+    </datalist>
+    <div class="forecastRangeLabels">
+        <span>1 Tag</span><span>2 Tage</span><span>3 Tage</span><span>4 Tage</span><span>5 Tage</span>
+    </div>
+</div>
 <h3>Böen - Modellvergleich</h3>
 <div class="note" style="margin-top:-6px;">
     Farbpriorität bei gleichen Werten (höhere Priorität liegt sichtbar oben): <strong>Prio 1 Best Match</strong> · <strong>Prio 2 ICON-D2</strong> · <strong>Prio 3 ICON-EU</strong> · <strong>Prio 4 ECMWF IFS</strong>.
@@ -139,7 +181,7 @@ code {
 <div id="locationInfo" class="subtitle">Ermittle deinen Standort...</div>
 <div id="forecastInfo" class="subtitle">Lade Prognosedaten...</div>
 <div class="note">
-    Datenquelle: Open-Meteo Forecast API. Vorhersagezeitraum: <strong>24 Stunden</strong>. Vergleich der Modelle <strong>ICON-EU</strong>, <strong>Best Match</strong>, <strong>ICON-D2</strong> und <strong>ECMWF IFS</strong>. Im Modellvergleich werden ausschließlich <strong>Böen</strong> für die nächsten <strong>24 Stunden</strong> angezeigt. Einheit: Knoten.<br>Die Böenlinien verwenden bewusst stark unterschiedliche Farben für bessere Lesbarkeit im Modellvergleich.<br>
+    Datenquelle: Open-Meteo Forecast API. Vorhersagezeitraum: <strong id="forecastPeriodLabel1">24 Stunden</strong>. Vergleich der Modelle <strong>ICON-EU</strong>, <strong>Best Match</strong>, <strong>ICON-D2</strong> und <strong>ECMWF IFS</strong>. Im Modellvergleich werden ausschließlich <strong>Böen</strong> für die nächsten <strong id="forecastPeriodLabel2">24 Stunden</strong> angezeigt. Einheit: Knoten.<br>Die Böenlinien verwenden bewusst stark unterschiedliche Farben für bessere Lesbarkeit im Modellvergleich.<br>
     Die Windrose zeigt weiterhin die Windrichtung. Diese Diagnose-Version zeigt bei Fehlern die vollständige HTTP-Antwort der Open-Meteo-API inklusive API-URL.<br>
     Hinweis: <strong>ECMWF IFS</strong> wird mit <code>models=ecmwf_ifs025</code> abgefragt. Kann ein Modell für den aktuellen Standort keine Werte liefern, wird es auf der gesamten Seite ausgeblendet; ein entsprechender Hinweis erscheint oberhalb.<br>
     Wichtig: <strong>Best Match</strong> wird hier bewusst <strong>ohne</strong> <code>models=...</code>-Parameter abgefragt. Dadurch nutzt Open-Meteo die automatische Standardauswahl für den Standort.
@@ -156,8 +198,8 @@ code {
     <strong>Legende Windrose:</strong>
     <ul>
         <li>Die Himmelsrichtungen zeigen, <strong>aus welcher Richtung</strong> der Wind kommt.</li>
-        <li>Die Zahlen auf den konzentrischen Kreisen zeigen die <strong>Anzahl der Prognosestunden innerhalb der nächsten 24 Stunden</strong>.</li>
-        <li>Beispiel: <strong>12 h bei NW</strong> bedeutet: In 12 der nächsten 24 Prognosestunden kommt der Wind aus Nordwest.</li>
+        <li>Die Zahlen auf den konzentrischen Kreisen zeigen die <strong>Anzahl der Prognosestunden innerhalb der nächsten <span id="forecastPeriodLabel3">24 Stunden</span></strong>.</li>
+        <li>Beispiel: <strong>12 h bei NW</strong> bedeutet: In 12 der nächsten <span id="forecastPeriodLabel4">24</span> Prognosestunden kommt der Wind aus Nordwest.</li>
         <li>Die farbigen Flächen/Linien entsprechen den Modellen: ICON-EU, Best Match, ICON-D2 und ECMWF IFS.</li>
     </ul>
 </div>
@@ -165,9 +207,10 @@ code {
     <strong>Legende URL-Parameter (optional, zum Testen):</strong>
     <ul>
         <li><code>?lat=</code> und <code>?lon=</code> - Test-Standort statt Browser-Geolocation, z. B. <code>?lat=44.6362&amp;lon=14.2440</code>. Beide Parameter müssen gemeinsam angegeben werden.</li>
-        <li><code>?start=</code> - Test-Startzeitpunkt der 24h-Prognose statt "jetzt", Format <code>JJJJ-MM-TTTHH:mm</code>, z. B. <code>?start=2026-07-18T15:00</code>. Liegt der Zeitpunkt in der Vergangenheit, wird automatisch die Historical Forecast API von Open-Meteo verwendet (archivierte Modellläufe); in der Zukunft/ohne Angabe die normale Live-Forecast-API.</li>
-        <li>Kombinierbar, z. B.: <code>?lat=44.6362&amp;lon=14.2440&amp;start=2026-07-18T15:00</code></li>
-        <li>Ohne jeden Parameter: aktueller Browser-Standort (mit Fallback auf Maslinica) und die kommenden 24 Stunden ab jetzt.</li>
+        <li><code>?start=</code> - Test-Startzeitpunkt der Prognose statt "jetzt", Format <code>JJJJ-MM-TTTHH:mm</code>, z. B. <code>?start=2026-07-18T15:00</code>. Liegt der Zeitpunkt in der Vergangenheit, wird automatisch die Historical Forecast API von Open-Meteo verwendet (archivierte Modellläufe); in der Zukunft/ohne Angabe die normale Live-Forecast-API.</li>
+        <li><code>?days=</code> - Wie viele Tage in die Zukunft (1 bis 5), entspricht dem Schalter "Wie lange in die Zukunft?" oben auf der Seite, z. B. <code>?days=3</code>. Ohne Angabe: 1 Tag.</li>
+        <li>Kombinierbar, z. B.: <code>?lat=44.6362&amp;lon=14.2440&amp;start=2026-07-18T15:00&amp;days=3</code></li>
+        <li>Ohne jeden Parameter: aktueller Browser-Standort (mit Fallback auf Maslinica) und 1 Tag (24 Stunden) ab jetzt.</li>
     </ul>
 </div>
 <h3>Grobe Lage in Europa</h3>
@@ -264,6 +307,19 @@ let longitude = FALLBACK_LONGITUDE;
 let locationLabel = FALLBACK_LABEL;
 let usedFallback = false;
 let customStartDateTime = null; // Date-Objekt oder null (dann: aktuelle Zeit / letzte 24h wie bisher)
+let forecastDays = 1; // 1-5, per Schalter "Wie lange in die Zukunft?" bzw. ?days=... URL-Parameter
+let windChartInstance = null;
+let directionChartInstance = null;
+
+function onForecastDaysChange(value) {
+    forecastDays = Math.min(5, Math.max(1, Number.parseInt(value, 10) || 1));
+    document.getElementById("forecastDaysValue").textContent =
+        forecastDays === 1 ? "1 Tag" : `${forecastDays} Tage`;
+    loadWeather().catch(error => {
+        console.error(error);
+        document.getElementById("forecastInfo").innerHTML = "Fehler beim Laden: " + error.message;
+    });
+}
 
 function getBrowserLocation() {
     return new Promise(resolve => {
@@ -674,11 +730,11 @@ function buildApiUrl(modelId) {
         `&timezone=auto`;
 
     if (usingCustomStart) {
-        const endDateTime = new Date(customStartDateTime.getTime() + 24 * 3600 * 1000);
+        const endDateTime = new Date(customStartDateTime.getTime() + forecastDays * 24 * 3600 * 1000);
         url += `&start_date=${toLocalDateOnlyString(customStartDateTime)}`;
         url += `&end_date=${toLocalDateOnlyString(endDateTime)}`;
     } else {
-        url += `&forecast_hours=24`;
+        url += `&forecast_hours=${forecastDays * 24}`;
     }
     // Best Match = kein models-Parameter.
     // Nur explizite Modelle wie ICON-EU und ICON-D2 bekommen &models=...
@@ -754,13 +810,13 @@ async function fetchModel(model) {
     }
 
     // Bei explizitem Start-Zeitpunkt liefert start_date/end_date ganze Kalendertage zurück -
-    // hier auf das exakte 24h-Fenster ab dem gewünschten Zeitpunkt zuschneiden.
+    // hier auf das exakte gewünschte Zeitfenster (forecastDays Tage) ab dem Startzeitpunkt zuschneiden.
     let times = data.hourly.time;
     let gusts = data.hourly.wind_gusts_10m;
     let directions = data.hourly.wind_direction_10m;
     if (customStartDateTime instanceof Date && !Number.isNaN(customStartDateTime.getTime())) {
         const windowStart = customStartDateTime.getTime();
-        const windowEnd = windowStart + 24 * 3600 * 1000;
+        const windowEnd = windowStart + forecastDays * 24 * 3600 * 1000;
         const keepIndices = [];
         times.forEach((t, i) => {
             const ts = new Date(t).getTime();
@@ -894,7 +950,11 @@ function createCharts(results) {
             borderWidth: 2
         });
     });
-    new Chart(document.getElementById("windChart"), {
+    if (windChartInstance) {
+        windChartInstance.destroy();
+        windChartInstance = null;
+    }
+    windChartInstance = new Chart(document.getElementById("windChart"), {
         type: "line",
         data: { labels, datasets: windDatasets },
         options: {
@@ -918,7 +978,11 @@ function createCharts(results) {
         }
     });
     const roseLabels = ["N", "NO", "O", "SO", "S", "SW", "W", "NW"];
-    new Chart(document.getElementById("directionChart"), {
+    if (directionChartInstance) {
+        directionChartInstance.destroy();
+        directionChartInstance = null;
+    }
+    directionChartInstance = new Chart(document.getElementById("directionChart"), {
         type: "radar",
         data: { labels: roseLabels, datasets: directionDatasets },
         options: {
@@ -950,6 +1014,17 @@ function createCharts(results) {
         }
     });
 }
+function updateForecastPeriodTexts() {
+    const hours = forecastDays * 24;
+    const label = forecastDays === 1 ? "24 Stunden" : `${hours} Stunden (${forecastDays} Tage)`;
+    ["forecastPeriodLabel1", "forecastPeriodLabel2", "forecastPeriodLabel3"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = label;
+    });
+    const el4 = document.getElementById("forecastPeriodLabel4");
+    if (el4) el4.textContent = String(hours);
+}
+
 async function loadWeather() {
     const locationInfoEl = document.getElementById("locationInfo");
     const nearestPlaceNameEl = document.getElementById("nearestPlaceName");
@@ -970,6 +1045,18 @@ async function loadWeather() {
     } else {
         customStartDateTime = null;
     }
+
+    const daysParam = Number.parseInt(urlParams.get("days"), 10);
+    if (Number.isFinite(daysParam)) {
+        forecastDays = Math.min(5, Math.max(1, daysParam));
+    }
+    const forecastDaysSliderEl = document.getElementById("forecastDaysSlider");
+    const forecastDaysValueEl = document.getElementById("forecastDaysValue");
+    if (forecastDaysSliderEl) forecastDaysSliderEl.value = String(forecastDays);
+    if (forecastDaysValueEl) {
+        forecastDaysValueEl.textContent = forecastDays === 1 ? "1 Tag" : `${forecastDays} Tage`;
+    }
+    updateForecastPeriodTexts();
 
     if (hasOverride) {
         latitude = overrideLat;
