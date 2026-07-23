@@ -16,11 +16,53 @@ body {
     color: #1f2937;
 }
 h2 { margin-bottom: 5px; }
-#pdfDownloadBtn {
+#topRightControls {
     position: fixed;
     top: 16px;
     right: 16px;
     z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+.placeSearchBox {
+    display: flex;
+    gap: 6px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+.placeSearchBox input[type="text"] {
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 0.9em;
+    font-family: Arial, sans-serif;
+    width: 180px;
+}
+#placeSearchBtn {
+    background: #16a34a;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 12px;
+    font-size: 0.9em;
+    font-family: Arial, sans-serif;
+    cursor: pointer;
+    white-space: nowrap;
+}
+#placeSearchBtn:hover { background: #15803d; }
+#placeSearchBtn:disabled { background: #86efac; cursor: wait; }
+#placeSearchStatus {
+    font-size: 0.78em;
+    color: #6b7280;
+    max-width: 260px;
+    text-align: right;
+}
+#pdfDownloadBtn {
     background: #2563eb;
     color: #ffffff;
     border: none;
@@ -61,7 +103,11 @@ h2 { margin-bottom: 5px; }
 .forecastRangeLabels span:last-child { text-align: right; }
 .forecastRangeLabels span:not(:first-child):not(:last-child) { text-align: center; }
 @media (max-width: 640px) {
-    #pdfDownloadBtn { top: 8px; right: 8px; padding: 8px 12px; font-size: 0.8em; }
+    #topRightControls { top: 8px; right: 8px; gap: 6px; }
+    .placeSearchBox input[type="text"] { width: 110px; font-size: 0.8em; }
+    #placeSearchBtn { padding: 6px 8px; font-size: 0.78em; }
+    #placeSearchStatus { max-width: 160px; font-size: 0.7em; }
+    #pdfDownloadBtn { padding: 8px 12px; font-size: 0.8em; }
 }
 h3 { margin-top: 34px; margin-bottom: 8px; }
 .subtitle {
@@ -152,7 +198,15 @@ code {
 </style>
 </head>
 <body>
-<button id="pdfDownloadBtn" onclick="downloadPageAsPdf()">📄 Als PDF speichern</button>
+<div id="topRightControls">
+    <div class="placeSearchBox">
+        <input type="text" id="placeSearchInput" placeholder="Ort eingeben..."
+               onkeydown="if(event.key==='Enter'){searchPlaceAndUse();}">
+        <button id="placeSearchBtn" onclick="searchPlaceAndUse()">Ort verwenden</button>
+    </div>
+    <div id="placeSearchStatus"></div>
+    <button id="pdfDownloadBtn" onclick="downloadPageAsPdf()">📄 Als PDF speichern</button>
+</div>
 <h2>Böenprognose - aktueller Standort</h2>
 <div class="forecastRangeBox">
     <label for="forecastDaysSlider"><strong>Wie lange in die Zukunft?</strong> <span id="forecastDaysValue">1 Tag</span></label>
@@ -310,6 +364,56 @@ let customStartDateTime = null; // Date-Objekt oder null (dann: aktuelle Zeit / 
 let forecastDays = 1; // 1-5, per Schalter "Wie lange in die Zukunft?" bzw. ?days=... URL-Parameter
 let windChartInstance = null;
 let directionChartInstance = null;
+
+async function searchPlaceAndUse() {
+    const inputEl = document.getElementById("placeSearchInput");
+    const btnEl = document.getElementById("placeSearchBtn");
+    const statusEl = document.getElementById("placeSearchStatus");
+    const query = inputEl.value.trim();
+    if (!query) {
+        statusEl.textContent = "Bitte einen Ort eingeben.";
+        return;
+    }
+    btnEl.disabled = true;
+    const originalLabel = btnEl.textContent;
+    btnEl.textContent = "Suche...";
+    statusEl.textContent = "";
+    try {
+        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&limit=1`;
+        const response = await fetch(url, { headers: { "Accept-Language": "de,en;q=0.8" } });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const results = await response.json();
+        const hit = results?.[0];
+        if (!hit) {
+            statusEl.textContent = `"${query}" wurde nicht gefunden.`;
+            return;
+        }
+        const foundLat = Number.parseFloat(hit.lat);
+        const foundLon = Number.parseFloat(hit.lon);
+        if (!Number.isFinite(foundLat) || !Number.isFinite(foundLon)) {
+            statusEl.textContent = "Ungültige Koordinaten erhalten.";
+            return;
+        }
+        latitude = foundLat;
+        longitude = foundLon;
+        usedFallback = false;
+        statusEl.textContent = `Gefunden: ${hit.display_name}`;
+
+        // URL aktualisieren, damit lat/lon auch bei Reload/Teilen erhalten bleiben
+        const newParams = new URLSearchParams(window.location.search);
+        newParams.set("lat", String(foundLat));
+        newParams.set("lon", String(foundLon));
+        window.history.replaceState({}, "", `${window.location.pathname}?${newParams.toString()}`);
+
+        await loadWeather();
+    } catch (err) {
+        console.error("Ortssuche fehlgeschlagen:", err);
+        statusEl.textContent = "Fehler bei der Ortssuche: " + err.message;
+    } finally {
+        btnEl.disabled = false;
+        btnEl.textContent = originalLabel;
+    }
+}
 
 function onForecastDaysChange(value) {
     forecastDays = Math.min(5, Math.max(1, Number.parseInt(value, 10) || 1));
