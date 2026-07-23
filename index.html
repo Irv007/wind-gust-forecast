@@ -409,6 +409,16 @@ code {
         <li>Die farbigen Flächen/Linien entsprechen den Modellen: ICON-EU, Best Match, ICON-D2 und ECMWF IFS.</li>
     </ul>
 </div>
+<div id="islandMapSection">
+    <h3 id="section-karte">Präziser Kartenausschnitt: <span id="islandNameLabel"></span></h3>
+    <div class="note">
+        Echte OpenStreetMap-Detailkarte um den Standort (zugeschnitten auf den von Nominatim gelieferten Ortsbereich). Falls der Standort auf einer Insel liegt, ist diese hier - im Gegensatz zur stark vereinfachten Europa-Übersicht oben - tatsächlich als Insel mit realer Küstenlinie erkennbar.
+    </div>
+    <div class="chartBox" style="padding:0; overflow:hidden;">
+        <div id="islandMapContainer" style="height:440px; width:100%; border-radius:12px;"></div>
+    </div>
+</div>
+<button id="backToTopBtn" onclick="window.scrollTo({top:0, behavior:'smooth'})" aria-label="Nach oben scrollen" title="Nach oben">↑</button>
 <div class="roseLegend">
     <strong>Legende URL-Parameter (optional, zum Testen):</strong>
     <ul>
@@ -420,16 +430,6 @@ code {
         <li>Ohne jeden Parameter: aktueller Browser-Standort (mit Fallback auf Maslinica) und 1 Tag (24 Stunden) ab jetzt.</li>
     </ul>
 </div>
-<div id="islandMapSection">
-    <h3 id="section-karte">Präziser Kartenausschnitt: <span id="islandNameLabel"></span></h3>
-    <div class="note">
-        Echte OpenStreetMap-Detailkarte um den Standort (zugeschnitten auf den von Nominatim gelieferten Ortsbereich). Falls der Standort auf einer Insel liegt, ist diese hier - im Gegensatz zur stark vereinfachten Europa-Übersicht oben - tatsächlich als Insel mit realer Küstenlinie erkennbar.
-    </div>
-    <div class="chartBox" style="padding:0; overflow:hidden;">
-        <div id="islandMapContainer" style="height:440px; width:100%; border-radius:12px;"></div>
-    </div>
-</div>
-<button id="backToTopBtn" onclick="window.scrollTo({top:0, behavior:'smooth'})" aria-label="Nach oben scrollen" title="Nach oben">↑</button>
 <script>
 window.addEventListener("scroll", () => {
     const btn = document.getElementById("backToTopBtn");
